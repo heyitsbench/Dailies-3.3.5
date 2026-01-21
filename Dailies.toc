@@ -1,0 +1,12 @@
+## Interface: 30401
+## Title: Dailies
+## Author: CixiDelmont
+## Notes: Plan your Dailies
+## SavedVariables: Dailies_Data, Dailies_Settings
+## SavedVariablesPerCharacter: 
+## Version: 031
+## X-Website: https://warcraftratings.com
+embeds.xml
+Dailies.lua
+DailiesData.lua
+
