@@ -980,7 +980,8 @@ function Dailies:OnInitialize()
 	LibStub("AceConfig-3.0"):RegisterOptionsTable("Dailies", dllocal_options, nil)
 	LibStub("AceConfigDialog-3.0"):AddToBlizOptions("Dailies"):SetParent(InterfaceOptionsFramePanelContainer)
 	--AceConfig:RegisterOptionsTable(dllocal_addonName.."_cmd", nil, nil)
-	print(string.format("|cffff00ff[Dailies]|r v%s, 3.3.5 port by heyitsbench (original addon by Cixi/Gaya)", tostring(dllocal_version)))
+	-- same form as Attune's 2.4.3 port (Attune is by the same original author)
+	print(string.format("|cffff00ff[Dailies]|r v%s by Cixi/Gaya@Remulos, 3.3.5 port by heyitsbench. Type /dailies to start.", tostring(dllocal_version)))
 end
 
 -- mark new today's daily
