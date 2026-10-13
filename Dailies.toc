@@ -4,7 +4,7 @@
 ## Notes: Plan your Dailies
 ## SavedVariables: Dailies_Data, Dailies_Settings
 ## SavedVariablesPerCharacter: 
-## Version: 032
+## Version: 033
 ## X-Website: https://github.com/heyitsbench/Dailies-3.3.5
 ## X-Update-URL: https://github.com/heyitsbench/Dailies-3.3.5
 embeds.xml
