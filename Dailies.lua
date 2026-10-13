@@ -1442,9 +1442,9 @@ function Dailies.getFrame()
 
 	-- if view already exists, just return it
 	 if dllocal_frame then
-		Dailies.ShowTabContent()
 		dllocal_frame:Show()
 		dllocal_filter_frame.frame:Show()
+		Dailies.ShowTabContent()		-- built once shown, so the labels are laid out on screen
 		return dllocal_frame 
 	end
 
@@ -1555,11 +1555,8 @@ function Dailies.getFrame()
 
 
 
-	Dailies.ShowTabContent()
-
-
-
 	dllocal_frame:Show()
+	Dailies.ShowTabContent()		-- built once shown, so the labels are laid out on screen
 
 	dllocal_initial = false
 	return dllocal_frame
@@ -1568,7 +1565,7 @@ end
 
 -------------------------------------------------------------------------
 
-function Dailies.ShowTabContent()
+local function BuildTabContent()
 
 	if dllocal_tabgroup ~= nil then 
 
@@ -2011,9 +2008,9 @@ function Dailies.ShowTabContent()
 							local title = AceGUI:Create("InteractiveLabel")
 							title:SetText(status.." "..tit)
 							if dllocal_tabkey ~= "all" then 
-								title:SetWidth(380)
+								title:SetWidth(360)
 							else
-								title:SetWidth(380 +20 +20)  --to make up for the arrows being hidden
+								title:SetWidth(360 +20 +20)  --to make up for the arrows being hidden
 							end
 							-- title:SetJustifyH("LEFT")
 							title:SetFont(GameFontNormal:GetFont(), 12)
@@ -2045,7 +2042,7 @@ function Dailies.ShowTabContent()
                                     if Dailies_Data.Toons[dllocal_charKey].Quests[kq].Duration ~= nil and Dailies_Data.Toons[dllocal_charKey].Quests[kq].Duration.Fastest ~= nil then
                                         dllocal_info_record:SetText("Fastest completion: |cffffd100" .. Dailies.formatTime(Dailies_Data.Toons[dllocal_charKey].Quests[kq].Duration.Fastest) .. "|r")
                                     else
-                                        dllocal_info_record:SetText("")
+                                        dllocal_info_record:SetText(" ")
                                     end
 									if q.SubZone and q.SubZone ~= ""  then dllocal_info_coords:SetText(q.SubZone) else dllocal_info_coords:SetText("- ") end
 									if q.Text then 
@@ -2060,11 +2057,11 @@ function Dailies.ShowTabContent()
 										dllocal_info_inst:SetText("Instance: |cffffd100" .. dllocal_group[kq].long .. "|r");
 										dllocal_info_inst.frame:Show()
 									else 
-										dllocal_info_inst:SetText("") 
+										dllocal_info_inst:SetText(" ") 
 										dllocal_info_inst.frame:Hide()
 									end
 									
-									dllocal_info_attune:SetText("") 
+									dllocal_info_attune:SetText(" ") 
 									dllocal_info_attune.frame:Hide()
 									if dllocal_attuneId[kq] and Attune_Data then 
 
@@ -2133,7 +2130,7 @@ function Dailies.ShowTabContent()
 							totalGold = totalGold + q.Money
 							local reward = AceGUI:Create("InteractiveLabel")
 							reward:SetText(rewardText)
-							reward:SetWidth(80)
+							reward:SetWidth(100)		-- wide enough for gold, silver and copper on one line
 							-- reward:SetJustifyH("RIGHT")
 							reward:SetFont(GameFontNormal:GetFont(), 12)
 							quest:AddChild(reward)
@@ -2423,7 +2420,7 @@ function Dailies.ShowTabContent()
 					end
 					local totalrep = AceGUI:Create("InteractiveLabel")
 					totalrep:SetText(repText)
-					totalrep:SetWidth(230)
+					totalrep:SetWidth(210)
 					-- totalrep:SetJustifyH("RIGHT")
 					totalrep:SetFont(GameFontNormal:GetFont(), 12)
 					if tooltip ~= "" then 
@@ -2441,7 +2438,7 @@ function Dailies.ShowTabContent()
 					if totalGold > 0 then goldString = GetMoneyString(totalGold, true) end
 					local totalvalue = AceGUI:Create("Label")
 					totalvalue:SetText(goldString)
-					totalvalue:SetWidth(80)
+					totalvalue:SetWidth(100)
 					-- totalvalue:SetJustifyH("RIGHT")
 					totalvalue:SetFont(GameFontNormal:GetFont(), 12)
 					total:AddChild(totalvalue)
@@ -2532,6 +2529,28 @@ function Dailies.ShowTabContent()
 
 	end
 
+end
+
+-- The 3.3.5 client lays out a label's text, inline icons (|T...|t) included, at the
+-- moment the text is set. AceGUI recycles labels, and each one gets its text before
+-- its final font and width (and full-width ones only get their width from the
+-- layout), so icons could be drawn out of place; an empty text also leaves the icons
+-- a recycled label showed before on screen. Once the tab is built, set every label's
+-- text again (a space instead of nothing) and redo the layout for the new heights.
+local function RefreshLabels(widget)
+	if widget.children then
+		for _, child in ipairs(widget.children) do RefreshLabels(child) end
+		if widget.DoLayout then widget:DoLayout() end
+	elseif (widget.type == "Label" or widget.type == "InteractiveLabel") and widget.label then
+		local text = widget.label:GetText()
+		if text == nil or text == "" then text = " " end
+		widget:SetText(text)
+	end
+end
+
+function Dailies.ShowTabContent()
+	BuildTabContent()
+	if dllocal_tabgroup then RefreshLabels(dllocal_tabgroup) end
 end
 
 -------------------------------------------------------------------------
