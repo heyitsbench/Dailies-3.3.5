@@ -2250,7 +2250,7 @@ function Dailies.ShowTabContent()
                             
 						    								local groupCount = 0
 						    								for km2, m2 in pairs(dllocal_group) do 
-						    									if m.group == m2.group then groupCount = groupCount +1 end
+						    									if m.group == m2.group and (m2.faction == nil or m2.faction == dllocal_faction) then groupCount = groupCount +1 end -- own faction's pool only
 						    								end
 						    		
 						    								dllocal_info_heading:SetText("") 
