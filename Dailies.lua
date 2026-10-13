@@ -80,6 +80,8 @@ dllocal_repfaction = {}				-- reputation factions
 dllocal_attuneId = {}				-- quest Attune IDs
 dllocal_exclu = {}					-- mutually exclusive quests
 dllocal_ProfessionNames = {} 		-- profession names in all locales
+dllocal_givers = {}					-- quest givers, for quests sharing a title (Argent Tournament)
+dllocal_tournament = {}				-- Argent Tournament dailies
 
 local dllocal_questLog = nil			-- cached snapshot of the quest log, see Dailies.RefreshQuestLog()
 local dllocal_pendingDetail = nil		-- details of the daily last shown at a quest giver (confirmed on accept)
@@ -242,18 +244,105 @@ function Dailies.FindQuestInLog(title)
 	return nil
 end
 
+-- NPC ID of a unit (3.3.5 creature GUIDs: 0xF130 + 6 hex digits of NPC ID + spawn counter)
+local function NpcID(unit)
+	local guid = UnitGUID(unit)
+	if type(guid) ~= "string" or #guid < 12 then return nil end
+	local kind = tonumber(guid:sub(3, 5), 16)
+	if not kind or (kind % 8 ~= 3 and kind % 8 ~= 5) then return nil end	-- creature or vehicle
+	return tonumber(guid:sub(7, 12), 16)
+end
+
+-- The quest with this title that this NPC hands out (dllocal_givers in DailiesData.lua).
+-- Second value: whether the NPC is in that list at all.
+local function GiverQuestID(npcID, title)
+	local given = npcID and dllocal_givers and dllocal_givers[npcID]
+	if not given then return nil, false end
+	local entry = title and given[title]
+	if type(entry) == "table" then entry = entry[dllocal_faction] end
+	return entry, true
+end
+
+-- All the quest IDs an NPC from dllocal_givers hands out to our faction
+local function GiverQuestIDs(npcID)
+	local ids = {}
+	for _, entry in pairs((npcID and dllocal_givers and dllocal_givers[npcID]) or {}) do
+		if type(entry) == "table" then entry = entry[dllocal_faction] end
+		if entry then ids[#ids + 1] = entry end
+	end
+	return ids
+end
+
+-- Titles shared by several quests in dllocal_givers (e.g. "A Worthy Weapon")
+local dllocal_sharedTitles = nil
+local function IsSharedTitle(title)
+	if not dllocal_sharedTitles then
+		dllocal_sharedTitles = {}
+		for _, given in pairs(dllocal_givers or {}) do
+			for t in pairs(given) do dllocal_sharedTitles[t] = true end
+		end
+	end
+	return dllocal_sharedTitles[title] == true
+end
+
+-- Two different quests from the same daily pool. When a pool exists once per faction
+-- under the same name (e.g. "AT Aspirant", "Wrath Cooking"), the factions are kept apart.
+local function SamePool(a, b)
+	local ga, gb = dllocal_group[a], dllocal_group[b]
+	return a ~= b and ga ~= nil and gb ~= nil and ga.group == gb.group
+		and (ga.faction == nil or gb.faction == nil or ga.faction == gb.faction)
+end
+
+-- Argent Tournament dailies can be hidden from the options
+local function TournamentShown(kq)
+	return not (dllocal_tournament and dllocal_tournament[kq]) or Dailies_Settings.showTournamentDailies ~= false
+end
+
+-- Has this character ever done (or picked up) a quest from this pool?
+function Dailies.HasDoneGroup(groupName)
+	local quests = Dailies_Data.Toons[dllocal_charKey].Quests
+	for qid, g in pairs(dllocal_group) do
+		if g.group == groupName and (g.faction == nil or g.faction == dllocal_faction) then
+			local tq = quests[qid]
+			if tq and ((tq.TimesCompleted or 0) > 0 or tq.Accepted or tq.Completed) then return true end
+		end
+	end
+	return false
+end
+
 -- 3.3.5 has no GetQuestID(), so work out the ID of the quest currently shown
 -- at the quest giver from its title:
---  1) the quest log (quest already accepted: QUEST_PROGRESS / QUEST_COMPLETE)
---  2) a real GetQuestID() if the client has one
---  3) quests we've already learned for our faction (any client language)
---  4) the English title list in DailiesData.lua
+--  1) quests sharing a title (Argent Tournament): which one this NPC gives
+--  2) the quest log (quest already accepted: QUEST_PROGRESS / QUEST_COMPLETE)
+--  3) a real GetQuestID() if the client has one
+--  4) quests we've already learned for our faction (any client language)
+--  5) the English title list in DailiesData.lua
 function Dailies.CurrentQuestID()
 	local title = GetTitleText()
 	if not title or title == "" then return nil end
 
-	local id = Dailies.FindQuestInLog(title)
+	local npcID = NpcID("npc")
+	local id, knownGiver = GiverQuestID(npcID, title)
 	if id then return id end
+
+	if knownGiver then
+		-- other client languages: only consider the quests this NPC hands out
+		local candidates = GiverQuestIDs(npcID)
+		for _, qid in ipairs(candidates) do
+			local entry = QuestLog()[qid]
+			if entry and entry.title == title then return qid end
+		end
+		for _, qid in ipairs(candidates) do
+			if Dailies_Data.Quests[qid] and Dailies_Data.Quests[qid].Title == title then return qid end
+		end
+		return nil		-- not learned yet: recorded with its real ID once accepted
+	end
+
+	id = Dailies.FindQuestInLog(title)
+	if id then return id end
+
+	-- several quests share this title and we can't tell the NPC: wait for the quest log
+	if IsSharedTitle(title) then return nil end
 
 	if type(_G.GetQuestID) == "function" then
 		local ok, gid = pcall(_G.GetQuestID)
@@ -434,11 +523,26 @@ function Dailies.ScheduleRefresh(delay)
 	end)
 end
 
--- Today's to-do daily with this title, if any
-function Dailies.ToDoQuestByTitle(title)
+-- Today's to-do daily with this title at the NPC we're talking to, if any.
+-- readyToTurnIn: only a quest from the log whose objectives are done.
+function Dailies.ToDoQuestByTitle(title, readyToTurnIn)
 	if not title then return nil end
+	local function ok(id)
+		return dllocal_questTabs.ToDo[id] and (not readyToTurnIn or Dailies.ReadyToComplete(id))
+	end
+
+	-- several quests share this title (Argent Tournament): take the one this NPC gives
+	local npcQuest, knownGiver = GiverQuestID(NpcID("npc"), title)
+	if npcQuest then return ok(npcQuest) and npcQuest or nil end
+	if knownGiver then
+		for _, id in ipairs(GiverQuestIDs(NpcID("npc"))) do
+			if ok(id) and Dailies_Data.Quests[id] and Dailies_Data.Quests[id].Title == title then return id end
+		end
+		return nil
+	end
+
 	for id in pairs(dllocal_questTabs.ToDo) do
-		if Dailies_Data.Quests[id] and Dailies_Data.Quests[id].Title == title then return id end
+		if Dailies_Data.Quests[id] and Dailies_Data.Quests[id].Title == title and ok(id) then return id end
 	end
 	return nil
 end
@@ -670,6 +774,19 @@ local dllocal_options = {
 			width = "full",
 			order = 180,
 		},
+		showTournamentDailies = {
+			type = "toggle",
+			name = "Show Argent Tournament Dailies",
+			desc = "Show the Argent Tournament dailies (Icecrown). The 'Unknown ... Daily' line for a tournament pool only appears once this character has done one of its quests.",
+			get = function(info) return Dailies_Settings.showTournamentDailies end,
+			set = function(info, val) 
+				Dailies_Settings.showTournamentDailies = val 
+				-- need async otherwise the quest is not detected as completed
+				Dailies.ScheduleRefresh(0.2)
+			end,
+			width = "full",
+			order = 185,
+		},
 		spacer4 = {
 			type = "description",
 			name = " \n \n \n ",
@@ -823,6 +940,7 @@ function Dailies:OnEnable()
 	if Dailies_Settings.showTBCDailies == nil then Dailies_Settings.showTBCDailies = true end
 	if Dailies_Settings.showWotLKDailies == nil then Dailies_Settings.showWotLKDailies = true end
 	if Dailies_Settings.showWrathDungeonDailies == nil then Dailies_Settings.showWrathDungeonDailies = false end
+	if Dailies_Settings.showTournamentDailies == nil then Dailies_Settings.showTournamentDailies = true end
 
 
 	-- set defaults for existing dailies on new toons
@@ -1086,8 +1204,8 @@ function Dailies:GOSSIP_SHOW(event)
 	-- auto completes
 	if Dailies_Settings.autoCompleteQuests then
 		for index, quest in ipairs(GossipActiveQuests()) do
-			local id = Dailies.ToDoQuestByTitle(quest.title)
-			if id and Dailies.ReadyToComplete(id) then
+			local id = Dailies.ToDoQuestByTitle(quest.title, true)
+			if id then
 				SelectGossipActiveQuest(index)
 				return
 			end
@@ -1113,8 +1231,8 @@ function Dailies:QUEST_GREETING(event)
 
 	if Dailies_Settings.autoCompleteQuests then
 		for i = 1, (GetNumActiveQuests() or 0) do
-			local id = Dailies.ToDoQuestByTitle((GetActiveTitle(i)))
-			if id and Dailies.ReadyToComplete(id) then
+			local id = Dailies.ToDoQuestByTitle((GetActiveTitle(i)), true)
+			if id then
 				SelectActiveQuest(i)
 				return
 			end
@@ -1634,7 +1752,7 @@ function Dailies.ShowTabContent()
 
 				if (Dailies_Settings.showTBCDailies and expac == 2) or (Dailies_Settings.showWotLKDailies and expac == 3) then 
 					
-					if dllocal_seasonal[kq] == nil or (Dailies_Settings.showSeasonalDailies and dllocal_seasonal[kq] ~= nil) then 
+					if (dllocal_seasonal[kq] == nil or (Dailies_Settings.showSeasonalDailies and dllocal_seasonal[kq] ~= nil)) and TournamentShown(kq) then 
 
 						local header = string.upper(dllocal_group[kq] and dllocal_group[kq].group or "")
 						if header == "" then header = string.upper(q.Zone or "") end
@@ -1683,7 +1801,7 @@ function Dailies.ShowTabContent()
 						local haveAnotherAlready = false
 						if dllocal_group[kq] then  -- part of a group
 							for kq2, q2 in pairs(dllocal_group) do 
-								if dllocal_group[kq2].group == dllocal_group[kq].group and kq2 ~= kq then
+								if SamePool(kq2, kq) then
 									if Dailies.AlreadyHaveQuest(kq2) then 
 										haveAnotherAlready = true 
 										--print("disregarding "..kq.. " since " .. kq2 .. " is already selected")
@@ -1731,7 +1849,7 @@ function Dailies.ShowTabContent()
 							local poolName = dllocal_group[kq].group
 							local todaysPick = nil
 							for kq2 in pairs(dllocal_group) do
-								if kq2 ~= kq and dllocal_group[kq2].group == poolName and Dailies_Data.Quests[kq2]
+								if SamePool(kq2, kq) and Dailies_Data.Quests[kq2]
 										and Dailies_Data.Quests[kq2].TodayUntil and Dailies_Data.Quests[kq2].TodayUntil > time() then
 									todaysPick = kq2
 								end
@@ -2012,7 +2130,7 @@ function Dailies.ShowTabContent()
 							local actualDaily = nil
 							if dllocal_group[kq] then -- part of a group
 								for kq2, q2 in pairs(dllocal_group) do 
-									if dllocal_group[kq2].group == dllocal_group[kq].group and kq2 ~= kq then -- others from same group
+									if SamePool(kq2, kq) then -- others from same group
 										if Dailies_Data.Quests[kq2] and Dailies_Data.Quests[kq2].TodayUntil and Dailies_Data.Quests[kq2].TodayUntil > time() then actualDaily = kq2 end
 										--if dllocal_group[kq2].today then actualDaily = kq2 end
 									end
@@ -2066,17 +2184,23 @@ function Dailies.ShowTabContent()
 					end
 				end
 
+				local optinDone = {}
 				for km, m in pairs(dllocal_group) do 
 					local skipgeneric = false
 					--check group is for the right expac
 					--if m.expac == nil or m.expac <= dllocal_expac then 
 					if m.expac == nil or (Dailies_Settings.showTBCDailies and m.expac <= 2) or (Dailies_Settings.showWotLKDailies and m.expac == 3) then 
 						if (m.group ~= "Wrath Dungeon" and m.group ~= "Wrath Heroic") or (Dailies_Settings.showWrathDungeonDailies) then
-						    if dllocal_seasonal[km] == nil or (Dailies_Settings.showSeasonalDailies and dllocal_seasonal[km] ~= nil) then 
+						    if (dllocal_seasonal[km] == nil or (Dailies_Settings.showSeasonalDailies and dllocal_seasonal[km] ~= nil)) and TournamentShown(km) then 
 
                                 if m.faction == nil or m.faction == dllocal_faction then 
 
 						    		if Dailies_Settings.showOnlyForKnownProfessions and dllocal_prof[km] and Dailies_Data.Toons[dllocal_charKey].Professions[dllocal_prof[km]] == nil then skipgeneric = true end
+						    		-- opt-in pools (Argent Tournament): only once this character has done one of them
+						    		if m.optin and not skipgeneric then
+						    			if optinDone[m.group] == nil then optinDone[m.group] = Dailies.HasDoneGroup(m.group) end
+						    			if not optinDone[m.group] then skipgeneric = true end
+						    		end
 
 						    		if skipgeneric == false then 
 						    			local found = false
@@ -2335,7 +2459,7 @@ function Dailies.ClassifyQuests()
 
 		if (Dailies_Settings.showTBCDailies and expac == 2) or (Dailies_Settings.showWotLKDailies and expac == 3) then 
 
-			if dllocal_seasonal[kq] == nil or (Dailies_Settings.showSeasonalDailies and dllocal_seasonal[kq] ~= nil) then 
+			if (dllocal_seasonal[kq] == nil or (Dailies_Settings.showSeasonalDailies and dllocal_seasonal[kq] ~= nil)) and TournamentShown(kq) then 
 
 				-- only show quests available to this faction
 				if Dailies_Data.Quests[kq].Factions and Dailies_Data.Quests[kq].Factions[dllocal_faction] == 1 then 
@@ -2369,7 +2493,7 @@ function Dailies.ClassifyQuests()
 								end
 
 								for kq2, q2 in pairs(dllocal_group) do 
-									if dllocal_group[kq2].group == dllocal_group[kq].group and kq2 ~= kq then
+									if SamePool(kq2, kq) then
 										if Dailies.AlreadyHaveQuest(kq2) then haveAnotherAlready = true end
 									end
 								end
@@ -2397,8 +2521,11 @@ function Dailies.ClassifyQuests()
 							-- if the new one exists, then never show the old one
 							-- for example the SSO phase quests
 							if dllocal_temp[kq] then  -- part of a temp
-								if Dailies_Data.Quests[dllocal_temp[kq]] then 
-									if Dailies_Data.Quests[dllocal_temp[kq]].Seen and Dailies_Data.Quests[dllocal_temp[kq]].Seen[GetRealmName()] then 
+								-- one replacement quest, or a list of them (any one seen is enough)
+								local replacements = dllocal_temp[kq]
+								if type(replacements) ~= "table" then replacements = { replacements } end
+								for _, newQuest in ipairs(replacements) do
+									if Dailies_Data.Quests[newQuest] and Dailies_Data.Quests[newQuest].Seen and Dailies_Data.Quests[newQuest].Seen[GetRealmName()] then 
 										skip = true 
 									end
 								end
@@ -2479,7 +2606,7 @@ function Dailies.MakeGroupDaily(qid)
 		end
 
 		for kq, q in pairs(dllocal_group) do 
-			if dllocal_group[kq].group == dllocal_group[qid].group and kq ~= qid then -- others from same group
+			if SamePool(kq, qid) then -- others from same pool
 				if Dailies_Data.Quests[kq] then 
 					--Dailies_Data.Quests[kq].Today = nil 
 					Dailies_Data.Quests[kq].TodayUntil = nil

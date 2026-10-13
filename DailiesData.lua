@@ -181,11 +181,100 @@ dllocal_dailyids = {
     ["Slaves to Saronite"]                                    = 13300,
     ["Slaves to Saronite"]                                    = 13302,
     ["Aces High!"]                                            = 13414,
+    ["A Valiant's Field Training"]                            = 13592,
+    ["A Worthy Weapon"]                                       = 13600,
+    ["A Blade Fit For A Champion"]                            = 13603,
+    ["The Edge Of Winter"]                                    = 13616,
+    ["Learning The Reins"]                                    = 13625,
+    ["Jack Me Some Lumber"]                                   = 13627,
+    ["The Grand Melee"]                                       = 13665,
+    ["A Blade Fit For A Champion"]                            = 13666,
+    ["A Worthy Weapon"]                                       = 13669,
+    ["The Edge Of Winter"]                                    = 13670,
+    ["Training In The Field"]                                 = 13671,
+    ["A Blade Fit For A Champion"]                            = 13673,
+    ["A Worthy Weapon"]                                       = 13674,
+    ["The Edge Of Winter"]                                    = 13675,
+    ["Training In The Field"]                                 = 13676,
+    ["Learning The Reins"]                                    = 13677,
+    ["A Chip Off the Ulduar Block"]                           = 13681,
+    ["Threat From Above"]                                     = 13682,
+    ["A Blade Fit For A Champion"]                            = 13741,
+    ["A Worthy Weapon"]                                       = 13742,
+    ["The Edge Of Winter"]                                    = 13743,
+    ["A Valiant's Field Training"]                            = 13744,
+    ["The Grand Melee"]                                       = 13745,
+    ["A Blade Fit For A Champion"]                            = 13746,
+    ["A Worthy Weapon"]                                       = 13747,
+    ["The Edge Of Winter"]                                    = 13748,
+    ["A Valiant's Field Training"]                            = 13749,
+    ["The Grand Melee"]                                       = 13750,
+    ["A Blade Fit For A Champion"]                            = 13752,
+    ["A Worthy Weapon"]                                       = 13753,
+    ["The Edge Of Winter"]                                    = 13754,
+    ["A Valiant's Field Training"]                            = 13755,
+    ["The Grand Melee"]                                       = 13756,
+    ["A Blade Fit For A Champion"]                            = 13757,
+    ["A Worthy Weapon"]                                       = 13758,
+    ["The Edge Of Winter"]                                    = 13759,
+    ["A Valiant's Field Training"]                            = 13760,
+    ["The Grand Melee"]                                       = 13761,
+    ["A Blade Fit For A Champion"]                            = 13762,
+    ["A Worthy Weapon"]                                       = 13763,
+    ["The Edge Of Winter"]                                    = 13764,
+    ["A Valiant's Field Training"]                            = 13765,
+    ["The Grand Melee"]                                       = 13767,
+    ["A Blade Fit For A Champion"]                            = 13768,
+    ["A Worthy Weapon"]                                       = 13769,
+    ["The Edge Of Winter"]                                    = 13770,
+    ["A Valiant's Field Training"]                            = 13771,
+    ["The Grand Melee"]                                       = 13772,
+    ["A Blade Fit For A Champion"]                            = 13773,
+    ["A Worthy Weapon"]                                       = 13774,
+    ["The Edge Of Winter"]                                    = 13775,
+    ["A Valiant's Field Training"]                            = 13776,
+    ["The Grand Melee"]                                       = 13777,
+    ["A Blade Fit For A Champion"]                            = 13778,
+    ["A Worthy Weapon"]                                       = 13779,
+    ["The Edge Of Winter"]                                    = 13780,
+    ["A Valiant's Field Training"]                            = 13781,
+    ["The Grand Melee"]                                       = 13782,
+    ["A Blade Fit For A Champion"]                            = 13783,
+    ["A Worthy Weapon"]                                       = 13784,
+    ["The Edge Of Winter"]                                    = 13785,
+    ["A Valiant's Field Training"]                            = 13786,
+    ["The Grand Melee"]                                       = 13787,
+    ["Threat From Above"]                                     = 13788,
+    ["Taking Battle To The Enemy"]                            = 13789,
+    ["Among the Champions"]                                   = 13790,
+    ["Taking Battle To The Enemy"]                            = 13791,
+    ["Among the Champions"]                                   = 13793,
+    ["Threat From Above"]                                     = 13809,
+    ["Taking Battle To The Enemy"]                            = 13810,
+    ["Among the Champions"]                                   = 13811,
+    ["Threat From Above"]                                     = 13812,
+    ["Taking Battle To The Enemy"]                            = 13813,
+    ["Among the Champions"]                                   = 13814,
     ["The Ghostfish"]                                         = 13830,
     ["Jewel Of The Sewers"]                                   = 13832,
     ["Blood Is Thicker"]                                      = 13833,
     ["Dangerously Delicious"]                                 = 13834,
     ["Disarmed!"]                                             = 13836,
+    ["Contributin' To The Cause"]                             = 13846,
+    ["At The Enemy's Gates"]                                  = 13847,
+    ["At The Enemy's Gates"]                                  = 13851,
+    ["At The Enemy's Gates"]                                  = 13852,
+    ["At The Enemy's Gates"]                                  = 13854,
+    ["At The Enemy's Gates"]                                  = 13855,
+    ["At The Enemy's Gates"]                                  = 13856,
+    ["At The Enemy's Gates"]                                  = 13857,
+    ["At The Enemy's Gates"]                                  = 13858,
+    ["At The Enemy's Gates"]                                  = 13859,
+    ["At The Enemy's Gates"]                                  = 13860,
+    ["Battle Before The Citadel"]                             = 13861,
+    ["Battle Before The Citadel"]                             = 13862,
+    ["Battle Before The Citadel"]                             = 13863,
+    ["Battle Before The Citadel"]                             = 13864,
     ["Gorishi Grub"]                                          = 13903,
     ["Poached, Scrambled, Or Raw?"]                           = 13904,
     ["Searing Roc Feathers"]                                  = 13905,
@@ -200,6 +289,29 @@ dllocal_dailyids = {
     ["Easy As Pie"]                                           = 14060,
     ["Can't Get Enough Turkey"]                               = 14061,
     ["Don't Forget The Stuffing!"]                            = 14062,
+    ["A Leg Up"]                                              = 14074,
+    ["Breakfast Of Champions"]                                = 14076,
+    ["The Light's Mercy"]                                     = 14077,
+    ["Stop The Aggressors"]                                   = 14080,
+    ["Gormok Wants His Snobolds"]                             = 14090,
+    ["Breakfast Of Champions"]                                = 14092,
+    ["Identifying the Remains"]                               = 14095,
+    ["You've Really Done It This Time, Kul"]                  = 14096,
+    ["Drottinn Hrothgar"]                                     = 14101,
+    ["Mistcaller Yngvar"]                                     = 14102,
+    ["Ornolf The Scarred"]                                    = 14104,
+    ["Deathspeaker Kharos"]                                   = 14105,
+    ["The Fate Of The Fallen"]                                = 14107,
+    ["Get Kraken!"]                                           = 14108,
+    ["What Do You Feed a Yeti, Anyway?"]                      = 14112,
+    ["Rescue at Sea"]                                         = 14136,
+    ["Stop The Aggressors"]                                   = 14140,
+    ["Gormok Wants His Snobolds"]                             = 14141,
+    ["You've Really Done It This Time, Kul"]                  = 14142,
+    ["A Leg Up"]                                              = 14143,
+    ["The Light's Mercy"]                                     = 14144,
+    ["What Do You Feed a Yeti, Anyway?"]                      = 14145,
+    ["Rescue at Sea"]                                         = 14152,
     ["Proof of Demise: The Black Knight"]                     = 14199,
     ["You've Been Served"]                                    = 14488,
     ["A Gift for the King of Stormwind"]                      = 24597,
@@ -327,6 +439,84 @@ dllocal_group = {
     [13904] = { group = "Venomhide Ravasaur"; expac=3,  faction="Horde"},
     [13905] = { group = "Venomhide Ravasaur"; expac=3,  faction="Horde"},
 
+
+    -- Argent Tournament (Icecrown): one quest of each pool is offered per day.
+    -- optin: the "Unknown ... Daily" line only shows once this character has done one from the pool,
+    -- since which pools you can do depends on your tournament rank (Aspirant/Valiant/Champion/Crusader).
+    [13666] = { group = "AT Aspirant"; faction="Alliance"; expac=3, optin=true }, -- A Blade Fit For A Champion
+    [13669] = { group = "AT Aspirant"; faction="Alliance"; expac=3, optin=true }, -- A Worthy Weapon
+    [13670] = { group = "AT Aspirant"; faction="Alliance"; expac=3, optin=true }, -- The Edge Of Winter
+
+    [13673] = { group = "AT Aspirant"; faction="Horde"; expac=3, optin=true }, -- A Blade Fit For A Champion
+    [13674] = { group = "AT Aspirant"; faction="Horde"; expac=3, optin=true }, -- A Worthy Weapon
+    [13675] = { group = "AT Aspirant"; faction="Horde"; expac=3, optin=true }, -- The Edge Of Winter
+
+    [13600] = { group = "AT Valiant: Stormwind"; faction="Alliance"; expac=3, optin=true }, -- A Worthy Weapon
+    [13603] = { group = "AT Valiant: Stormwind"; faction="Alliance"; expac=3, optin=true }, -- A Blade Fit For A Champion
+    [13616] = { group = "AT Valiant: Stormwind"; faction="Alliance"; expac=3, optin=true }, -- The Edge Of Winter
+
+    [13741] = { group = "AT Valiant: Ironforge"; faction="Alliance"; expac=3, optin=true }, -- A Blade Fit For A Champion
+    [13742] = { group = "AT Valiant: Ironforge"; faction="Alliance"; expac=3, optin=true }, -- A Worthy Weapon
+    [13743] = { group = "AT Valiant: Ironforge"; faction="Alliance"; expac=3, optin=true }, -- The Edge Of Winter
+
+    [13746] = { group = "AT Valiant: Gnomeregan"; faction="Alliance"; expac=3, optin=true }, -- A Blade Fit For A Champion
+    [13747] = { group = "AT Valiant: Gnomeregan"; faction="Alliance"; expac=3, optin=true }, -- A Worthy Weapon
+    [13748] = { group = "AT Valiant: Gnomeregan"; faction="Alliance"; expac=3, optin=true }, -- The Edge Of Winter
+
+    [13757] = { group = "AT Valiant: Darnassus"; faction="Alliance"; expac=3, optin=true }, -- A Blade Fit For A Champion
+    [13758] = { group = "AT Valiant: Darnassus"; faction="Alliance"; expac=3, optin=true }, -- A Worthy Weapon
+    [13759] = { group = "AT Valiant: Darnassus"; faction="Alliance"; expac=3, optin=true }, -- The Edge Of Winter
+
+    [13752] = { group = "AT Valiant: Exodar"; faction="Alliance"; expac=3, optin=true }, -- A Blade Fit For A Champion
+    [13753] = { group = "AT Valiant: Exodar"; faction="Alliance"; expac=3, optin=true }, -- A Worthy Weapon
+    [13754] = { group = "AT Valiant: Exodar"; faction="Alliance"; expac=3, optin=true }, -- The Edge Of Winter
+
+    [13762] = { group = "AT Valiant: Orgrimmar"; faction="Horde"; expac=3, optin=true }, -- A Blade Fit For A Champion
+    [13763] = { group = "AT Valiant: Orgrimmar"; faction="Horde"; expac=3, optin=true }, -- A Worthy Weapon
+    [13764] = { group = "AT Valiant: Orgrimmar"; faction="Horde"; expac=3, optin=true }, -- The Edge Of Winter
+
+    [13768] = { group = "AT Valiant: Sen'jin"; faction="Horde"; expac=3, optin=true }, -- A Blade Fit For A Champion
+    [13769] = { group = "AT Valiant: Sen'jin"; faction="Horde"; expac=3, optin=true }, -- A Worthy Weapon
+    [13770] = { group = "AT Valiant: Sen'jin"; faction="Horde"; expac=3, optin=true }, -- The Edge Of Winter
+
+    [13773] = { group = "AT Valiant: Thunder Bluff"; faction="Horde"; expac=3, optin=true }, -- A Blade Fit For A Champion
+    [13774] = { group = "AT Valiant: Thunder Bluff"; faction="Horde"; expac=3, optin=true }, -- A Worthy Weapon
+    [13775] = { group = "AT Valiant: Thunder Bluff"; faction="Horde"; expac=3, optin=true }, -- The Edge Of Winter
+
+    [13778] = { group = "AT Valiant: Undercity"; faction="Horde"; expac=3, optin=true }, -- A Blade Fit For A Champion
+    [13779] = { group = "AT Valiant: Undercity"; faction="Horde"; expac=3, optin=true }, -- A Worthy Weapon
+    [13780] = { group = "AT Valiant: Undercity"; faction="Horde"; expac=3, optin=true }, -- The Edge Of Winter
+
+    [13783] = { group = "AT Valiant: Silvermoon"; faction="Horde"; expac=3, optin=true }, -- A Blade Fit For A Champion
+    [13784] = { group = "AT Valiant: Silvermoon"; faction="Horde"; expac=3, optin=true }, -- A Worthy Weapon
+    [13785] = { group = "AT Valiant: Silvermoon"; faction="Horde"; expac=3, optin=true }, -- The Edge Of Winter
+
+    [14074] = { group = "AT Champion: Narasi"; faction="Alliance"; expac=3, optin=true }, -- A Leg Up
+    [14077] = { group = "AT Champion: Narasi"; faction="Alliance"; expac=3, optin=true }, -- The Light's Mercy
+    [14080] = { group = "AT Champion: Narasi"; faction="Alliance"; expac=3, optin=true }, -- Stop The Aggressors
+    [14152] = { group = "AT Champion: Narasi"; faction="Alliance"; expac=3, optin=true }, -- Rescue at Sea
+
+    [14076] = { group = "AT Champion: Savinia"; faction="Alliance"; expac=3, optin=true }, -- Breakfast Of Champions
+    [14090] = { group = "AT Champion: Savinia"; faction="Alliance"; expac=3, optin=true }, -- Gormok Wants His Snobolds
+    [14112] = { group = "AT Champion: Savinia"; faction="Alliance"; expac=3, optin=true }, -- What Do You Feed a Yeti, Anyway?
+
+    [14136] = { group = "AT Champion: Girana"; faction="Horde"; expac=3, optin=true }, -- Rescue at Sea
+    [14140] = { group = "AT Champion: Girana"; faction="Horde"; expac=3, optin=true }, -- Stop The Aggressors
+    [14143] = { group = "AT Champion: Girana"; faction="Horde"; expac=3, optin=true }, -- A Leg Up
+    [14144] = { group = "AT Champion: Girana"; faction="Horde"; expac=3, optin=true }, -- The Light's Mercy
+
+    [14092] = { group = "AT Champion: Tylos"; faction="Horde"; expac=3, optin=true }, -- Breakfast Of Champions
+    [14141] = { group = "AT Champion: Tylos"; faction="Horde"; expac=3, optin=true }, -- Gormok Wants His Snobolds
+    [14145] = { group = "AT Champion: Tylos"; faction="Horde"; expac=3, optin=true }, -- What Do You Feed a Yeti, Anyway?
+
+    [14101] = { group = "AT Crusader: Adelard"; expac=3, optin=true }, -- Drottinn Hrothgar
+    [14102] = { group = "AT Crusader: Adelard"; expac=3, optin=true }, -- Mistcaller Yngvar
+    [14104] = { group = "AT Crusader: Adelard"; expac=3, optin=true }, -- Ornolf The Scarred
+    [14105] = { group = "AT Crusader: Adelard"; expac=3, optin=true }, -- Deathspeaker Kharos
+
+    [14107] = { group = "AT Crusader: Silverdawn"; expac=3, optin=true }, -- The Fate Of The Fallen
+    [14108] = { group = "AT Crusader: Silverdawn"; expac=3, optin=true }, -- Get Kraken!
+
 }
 
 
@@ -343,6 +533,13 @@ dllocal_exclu = {
 }
 
 
+-- Argent Tournament dailies added with or after the Coliseum (patch 3.2+), see dllocal_temp
+local dllocal_atPostConstruction = {
+    14074, 14076, 14077, 14080, 14090, 14092, 14095, 14096,
+    14101, 14102, 14104, 14105, 14107, 14108, 14112, 14136,
+    14140, 14141, 14142, 14143, 14144, 14145, 14152,
+}
+
 -- group of quests that get replaced after some time
 -- Typically the SSO phase quests
 -- Both quests seem to become 'completed' together, when in reality only the one that is available in that phase can
@@ -356,6 +553,12 @@ dllocal_temp = {
     [11539] = 11540, -- SSO harbor
     [11520] = 11521, -- SSO roots
     [11535] = 11536, -- SSO Bsmith
+
+    -- Argent Tournament construction (patch 3.1): Bezzle and Bozzle Blastbolt's supply dailies for the
+    -- Crusaders' Coliseum were removed once it was finished (3.2). They are hidden as soon as any
+    -- post-construction Argent Tournament daily (3.2+) has been seen.
+    [13627] = dllocal_atPostConstruction, -- Jack Me Some Lumber
+    [13681] = dllocal_atPostConstruction, -- A Chip Off the Ulduar Block
 }
 
 
@@ -538,6 +741,95 @@ dllocal_reps = {
     [13252] = { [1090] = 75 },
     [13245] = { [1090] = 75 },
     [14199] = { [1090] = 75 },
+
+    -- Argent Tournament
+    [13592] = { [72] = 250, [1094] = 250 }, -- A Valiant's Field Training
+    [13600] = { [72] = 250, [1094] = 250 }, -- A Worthy Weapon
+    [13603] = { [72] = 250, [1094] = 250 }, -- A Blade Fit For A Champion
+    [13616] = { [72] = 250, [1094] = 250 }, -- The Edge Of Winter
+    [13625] = { [1094] = 250 }, -- Learning The Reins
+    [13665] = { [72] = 250, [1094] = 250 }, -- The Grand Melee
+    [13666] = { [1094] = 250 }, -- A Blade Fit For A Champion
+    [13669] = { [1094] = 250 }, -- A Worthy Weapon
+    [13670] = { [1094] = 250 }, -- The Edge Of Winter
+    [13671] = { [1094] = 250 }, -- Training In The Field
+    [13673] = { [1124] = 250 }, -- A Blade Fit For A Champion
+    [13674] = { [1124] = 250 }, -- A Worthy Weapon
+    [13675] = { [1124] = 250 }, -- The Edge Of Winter
+    [13676] = { [1124] = 250 }, -- Training In The Field
+    [13677] = { [1124] = 250 }, -- Learning The Reins
+    [13682] = { [1094] = 250, [1106] = 250 }, -- Threat From Above
+    [13741] = { [47] = 250, [1094] = 250 }, -- A Blade Fit For A Champion
+    [13742] = { [47] = 250, [1094] = 250 }, -- A Worthy Weapon
+    [13743] = { [47] = 250, [1094] = 250 }, -- The Edge Of Winter
+    [13744] = { [47] = 250, [1094] = 250 }, -- A Valiant's Field Training
+    [13745] = { [47] = 250, [1094] = 250 }, -- The Grand Melee
+    [13746] = { [54] = 250, [1094] = 250 }, -- A Blade Fit For A Champion
+    [13747] = { [54] = 250, [1094] = 250 }, -- A Worthy Weapon
+    [13748] = { [54] = 250, [1094] = 250 }, -- The Edge Of Winter
+    [13749] = { [54] = 250, [1094] = 250 }, -- A Valiant's Field Training
+    [13750] = { [54] = 250, [1094] = 250 }, -- The Grand Melee
+    [13752] = { [930] = 250, [1094] = 250 }, -- A Blade Fit For A Champion
+    [13753] = { [930] = 250, [1094] = 250 }, -- A Worthy Weapon
+    [13754] = { [930] = 250, [1094] = 250 }, -- The Edge Of Winter
+    [13755] = { [930] = 250, [1094] = 250 }, -- A Valiant's Field Training
+    [13756] = { [930] = 250, [1094] = 250 }, -- The Grand Melee
+    [13757] = { [69] = 250, [1094] = 250 }, -- A Blade Fit For A Champion
+    [13758] = { [69] = 250, [1094] = 250 }, -- A Worthy Weapon
+    [13759] = { [69] = 250, [1094] = 250 }, -- The Edge Of Winter
+    [13760] = { [69] = 250, [1094] = 250 }, -- A Valiant's Field Training
+    [13761] = { [69] = 250, [1094] = 250 }, -- The Grand Melee
+    [13762] = { [76] = 250, [1124] = 250 }, -- A Blade Fit For A Champion
+    [13763] = { [76] = 250, [1124] = 250 }, -- A Worthy Weapon
+    [13764] = { [76] = 250, [1124] = 250 }, -- The Edge Of Winter
+    [13765] = { [76] = 250, [1124] = 250 }, -- A Valiant's Field Training
+    [13767] = { [76] = 250, [1124] = 250 }, -- The Grand Melee
+    [13768] = { [530] = 250, [1124] = 250 }, -- A Blade Fit For A Champion
+    [13769] = { [530] = 250, [1124] = 250 }, -- A Worthy Weapon
+    [13770] = { [530] = 250, [1124] = 250 }, -- The Edge Of Winter
+    [13771] = { [530] = 250, [1124] = 250 }, -- A Valiant's Field Training
+    [13772] = { [530] = 250, [1124] = 250 }, -- The Grand Melee
+    [13773] = { [81] = 250, [1124] = 250 }, -- A Blade Fit For A Champion
+    [13774] = { [81] = 250, [1124] = 250 }, -- A Worthy Weapon
+    [13775] = { [81] = 250, [1124] = 250 }, -- The Edge Of Winter
+    [13776] = { [81] = 250, [1124] = 250 }, -- A Valiant's Field Training
+    [13777] = { [81] = 250, [1124] = 250 }, -- The Grand Melee
+    [13778] = { [68] = 250, [1124] = 250 }, -- A Blade Fit For A Champion
+    [13779] = { [68] = 250, [1124] = 250 }, -- A Worthy Weapon
+    [13780] = { [68] = 250, [1124] = 250 }, -- The Edge Of Winter
+    [13781] = { [68] = 250, [1124] = 250 }, -- A Valiant's Field Training
+    [13782] = { [68] = 250, [1124] = 250 }, -- The Grand Melee
+    [13783] = { [911] = 250, [1124] = 250 }, -- A Blade Fit For A Champion
+    [13784] = { [911] = 250, [1124] = 250 }, -- A Worthy Weapon
+    [13785] = { [911] = 250, [1124] = 250 }, -- The Edge Of Winter
+    [13786] = { [911] = 250, [1124] = 250 }, -- A Valiant's Field Training
+    [13787] = { [911] = 250, [1124] = 250 }, -- The Grand Melee
+    [13788] = { [1094] = 250, [1098] = 250 }, -- Threat From Above
+    [13789] = { [1094] = 250, [1106] = 250 }, -- Taking Battle To The Enemy
+    [13790] = { [1094] = 250, [1106] = 250 }, -- Among the Champions
+    [13791] = { [1094] = 250, [1098] = 250 }, -- Taking Battle To The Enemy
+    [13793] = { [1094] = 250, [1098] = 250 }, -- Among the Champions
+    [13809] = { [1106] = 250, [1124] = 250 }, -- Threat From Above
+    [13810] = { [1106] = 250, [1124] = 250 }, -- Taking Battle To The Enemy
+    [13811] = { [1106] = 250, [1124] = 250 }, -- Among the Champions
+    [13812] = { [1098] = 250, [1124] = 250 }, -- Threat From Above
+    [13813] = { [1098] = 250, [1124] = 250 }, -- Taking Battle To The Enemy
+    [13814] = { [1098] = 250, [1124] = 250 }, -- Among the Champions
+    [13846] = { [1106] = 100 }, -- Contributin' To The Cause
+    [13847] = { [72] = 250, [1094] = 250 }, -- At The Enemy's Gates
+    [13851] = { [47] = 250, [1094] = 250 }, -- At The Enemy's Gates
+    [13852] = { [54] = 250, [1094] = 250 }, -- At The Enemy's Gates
+    [13854] = { [930] = 250, [1094] = 250 }, -- At The Enemy's Gates
+    [13855] = { [69] = 250, [1094] = 250 }, -- At The Enemy's Gates
+    [13856] = { [76] = 250, [1124] = 250 }, -- At The Enemy's Gates
+    [13857] = { [530] = 250, [1124] = 250 }, -- At The Enemy's Gates
+    [13858] = { [81] = 250, [1124] = 250 }, -- At The Enemy's Gates
+    [13859] = { [911] = 250, [1124] = 250 }, -- At The Enemy's Gates
+    [13860] = { [68] = 250, [1124] = 250 }, -- At The Enemy's Gates
+    [13861] = { [1094] = 250, [1106] = 250 }, -- Battle Before The Citadel
+    [13862] = { [1106] = 250, [1124] = 250 }, -- Battle Before The Citadel
+    [13863] = { [1098] = 250, [1124] = 250 }, -- Battle Before The Citadel
+    [13864] = { [1094] = 250, [1098] = 250 }, -- Battle Before The Citadel
 }
 
 dllocal_repicons = {
@@ -560,11 +852,37 @@ dllocal_repicons = {
     [1090] = 'Interface\\Icons\\achievement_reputation_kirintor',                              -- Kirin Tor
     [1105] = 'Interface\\Icons\\achievement_reputation_murlocoracle',                          -- Oracles
     [1104] = 'Interface\\Icons\\achievement_reputation_wolvar',                                -- Frenzyheart
+
+    -- Argent Tournament
+    [1094] = 'Interface\\Icons\\inv_misc_tabardpvp_01',                                   -- The Silver Covenant
+    [1124] = 'Interface\\Icons\\inv_misc_tabardpvp_02',                                   -- The Sunreavers
+    [72]   = 'Interface\\Icons\\inv_misc_tournaments_symbol_human',                        -- Stormwind
+    [47]   = 'Interface\\Icons\\inv_misc_tournaments_symbol_dwarf',                        -- Ironforge
+    [54]   = 'Interface\\Icons\\inv_misc_tournaments_symbol_gnome',                        -- Gnomeregan Exiles
+    [69]   = 'Interface\\Icons\\inv_misc_tournaments_symbol_nightelf',                     -- Darnassus
+    [930]  = 'Interface\\Icons\\inv_misc_tournaments_symbol_draenei',                      -- Exodar
+    [76]   = 'Interface\\Icons\\inv_misc_tournaments_symbol_orc',                          -- Orgrimmar
+    [530]  = 'Interface\\Icons\\inv_misc_tournaments_symbol_troll',                        -- Darkspear Trolls
+    [81]   = 'Interface\\Icons\\inv_misc_tournaments_symbol_tauren',                       -- Thunder Bluff
+    [68]   = 'Interface\\Icons\\inv_misc_tournaments_symbol_scourge',                      -- Undercity
+    [911]  = 'Interface\\Icons\\inv_misc_tournaments_symbol_bloodelf',                     -- Silvermoon City
 }
 
 dllocal_repfaction = {
     [947] = 'Horde',
     [946] = 'Alliance',
+    [1094] = 'Alliance', -- The Silver Covenant
+    [72]   = 'Alliance', -- Stormwind
+    [47]   = 'Alliance', -- Ironforge
+    [54]   = 'Alliance', -- Gnomeregan Exiles
+    [69]   = 'Alliance', -- Darnassus
+    [930]  = 'Alliance', -- Exodar
+    [1124] = 'Horde',    -- The Sunreavers
+    [76]   = 'Horde',    -- Orgrimmar
+    [530]  = 'Horde',    -- Darkspear Trolls
+    [81]   = 'Horde',    -- Thunder Bluff
+    [68]   = 'Horde',    -- Undercity
+    [911]  = 'Horde',    -- Silvermoon City
 }
 
 dllocal_attuneId = {
@@ -699,6 +1017,182 @@ dllocal_seasonal = {
     [14054] = true, -- Pilgrim's Bounty
     [14059] = true, -- Pilgrim's Bounty
     [14062] = true, -- Pilgrim's Bounty
+}
+
+
+-- Argent Tournament dailies (used by the "Show Argent Tournament Dailies" option)
+dllocal_tournament = {
+    [13592] = true, -- A Valiant's Field Training
+    [13600] = true, -- A Worthy Weapon
+    [13603] = true, -- A Blade Fit For A Champion
+    [13616] = true, -- The Edge Of Winter
+    [13625] = true, -- Learning The Reins
+    [13627] = true, -- Jack Me Some Lumber
+    [13665] = true, -- The Grand Melee
+    [13666] = true, -- A Blade Fit For A Champion
+    [13669] = true, -- A Worthy Weapon
+    [13670] = true, -- The Edge Of Winter
+    [13671] = true, -- Training In The Field
+    [13673] = true, -- A Blade Fit For A Champion
+    [13674] = true, -- A Worthy Weapon
+    [13675] = true, -- The Edge Of Winter
+    [13676] = true, -- Training In The Field
+    [13677] = true, -- Learning The Reins
+    [13681] = true, -- A Chip Off the Ulduar Block
+    [13682] = true, -- Threat From Above
+    [13741] = true, -- A Blade Fit For A Champion
+    [13742] = true, -- A Worthy Weapon
+    [13743] = true, -- The Edge Of Winter
+    [13744] = true, -- A Valiant's Field Training
+    [13745] = true, -- The Grand Melee
+    [13746] = true, -- A Blade Fit For A Champion
+    [13747] = true, -- A Worthy Weapon
+    [13748] = true, -- The Edge Of Winter
+    [13749] = true, -- A Valiant's Field Training
+    [13750] = true, -- The Grand Melee
+    [13752] = true, -- A Blade Fit For A Champion
+    [13753] = true, -- A Worthy Weapon
+    [13754] = true, -- The Edge Of Winter
+    [13755] = true, -- A Valiant's Field Training
+    [13756] = true, -- The Grand Melee
+    [13757] = true, -- A Blade Fit For A Champion
+    [13758] = true, -- A Worthy Weapon
+    [13759] = true, -- The Edge Of Winter
+    [13760] = true, -- A Valiant's Field Training
+    [13761] = true, -- The Grand Melee
+    [13762] = true, -- A Blade Fit For A Champion
+    [13763] = true, -- A Worthy Weapon
+    [13764] = true, -- The Edge Of Winter
+    [13765] = true, -- A Valiant's Field Training
+    [13767] = true, -- The Grand Melee
+    [13768] = true, -- A Blade Fit For A Champion
+    [13769] = true, -- A Worthy Weapon
+    [13770] = true, -- The Edge Of Winter
+    [13771] = true, -- A Valiant's Field Training
+    [13772] = true, -- The Grand Melee
+    [13773] = true, -- A Blade Fit For A Champion
+    [13774] = true, -- A Worthy Weapon
+    [13775] = true, -- The Edge Of Winter
+    [13776] = true, -- A Valiant's Field Training
+    [13777] = true, -- The Grand Melee
+    [13778] = true, -- A Blade Fit For A Champion
+    [13779] = true, -- A Worthy Weapon
+    [13780] = true, -- The Edge Of Winter
+    [13781] = true, -- A Valiant's Field Training
+    [13782] = true, -- The Grand Melee
+    [13783] = true, -- A Blade Fit For A Champion
+    [13784] = true, -- A Worthy Weapon
+    [13785] = true, -- The Edge Of Winter
+    [13786] = true, -- A Valiant's Field Training
+    [13787] = true, -- The Grand Melee
+    [13788] = true, -- Threat From Above
+    [13789] = true, -- Taking Battle To The Enemy
+    [13790] = true, -- Among the Champions
+    [13791] = true, -- Taking Battle To The Enemy
+    [13793] = true, -- Among the Champions
+    [13809] = true, -- Threat From Above
+    [13810] = true, -- Taking Battle To The Enemy
+    [13811] = true, -- Among the Champions
+    [13812] = true, -- Threat From Above
+    [13813] = true, -- Taking Battle To The Enemy
+    [13814] = true, -- Among the Champions
+    [13846] = true, -- Contributin' To The Cause
+    [13847] = true, -- At The Enemy's Gates
+    [13851] = true, -- At The Enemy's Gates
+    [13852] = true, -- At The Enemy's Gates
+    [13854] = true, -- At The Enemy's Gates
+    [13855] = true, -- At The Enemy's Gates
+    [13856] = true, -- At The Enemy's Gates
+    [13857] = true, -- At The Enemy's Gates
+    [13858] = true, -- At The Enemy's Gates
+    [13859] = true, -- At The Enemy's Gates
+    [13860] = true, -- At The Enemy's Gates
+    [13861] = true, -- Battle Before The Citadel
+    [13862] = true, -- Battle Before The Citadel
+    [13863] = true, -- Battle Before The Citadel
+    [13864] = true, -- Battle Before The Citadel
+    [14074] = true, -- A Leg Up
+    [14076] = true, -- Breakfast Of Champions
+    [14077] = true, -- The Light's Mercy
+    [14080] = true, -- Stop The Aggressors
+    [14090] = true, -- Gormok Wants His Snobolds
+    [14092] = true, -- Breakfast Of Champions
+    [14095] = true, -- Identifying the Remains
+    [14096] = true, -- You've Really Done It This Time, Kul
+    [14101] = true, -- Drottinn Hrothgar
+    [14102] = true, -- Mistcaller Yngvar
+    [14104] = true, -- Ornolf The Scarred
+    [14105] = true, -- Deathspeaker Kharos
+    [14107] = true, -- The Fate Of The Fallen
+    [14108] = true, -- Get Kraken!
+    [14112] = true, -- What Do You Feed a Yeti, Anyway?
+    [14136] = true, -- Rescue at Sea
+    [14140] = true, -- Stop The Aggressors
+    [14141] = true, -- Gormok Wants His Snobolds
+    [14142] = true, -- You've Really Done It This Time, Kul
+    [14143] = true, -- A Leg Up
+    [14144] = true, -- The Light's Mercy
+    [14145] = true, -- What Do You Feed a Yeti, Anyway?
+    [14152] = true, -- Rescue at Sea
+}
+
+
+-- Quests that share a title with other quests (the Argent Tournament has up to 12 quests per title):
+-- which quest each NPC hands out, so the right quest ID is recorded at the quest giver.
+-- [npcID] = { ["Quest title"] = questID }  or  { Alliance = questID, Horde = questID } when the NPC
+-- gives both factions their own version.
+dllocal_givers = {
+    [33222] = { ["A Valiant's Field Training"] = 13592 }, -- Sir Marcus Barlowe
+    [33223] = { ["At The Enemy's Gates"] = 13847, ["The Grand Melee"] = 13665 }, -- Captain Joseph Holley
+    [33225] = { ["A Blade Fit For A Champion"] = 13603, ["A Worthy Weapon"] = 13600, ["The Edge Of Winter"] = 13616 }, -- Marshal Jacob Alerius
+    [33309] = { ["At The Enemy's Gates"] = 13851, ["The Grand Melee"] = 13745 }, -- Clara Tumblebrew
+    [33312] = { ["A Blade Fit For A Champion"] = 13741, ["A Worthy Weapon"] = 13742, ["The Edge Of Winter"] = 13743 }, -- Lana Stouthammer
+    [33315] = { ["A Valiant's Field Training"] = 13744 }, -- Rollo Sureshot
+    [33335] = { ["A Blade Fit For A Champion"] = 13746, ["A Worthy Weapon"] = 13747, ["The Edge Of Winter"] = 13748 }, -- Ambrose Boltspark
+    [33361] = { ["A Blade Fit For A Champion"] = 13762, ["A Worthy Weapon"] = 13763, ["The Edge Of Winter"] = 13764 }, -- Mokra the Skullcrusher
+    [33372] = { ["A Blade Fit For A Champion"] = 13768, ["A Worthy Weapon"] = 13769, ["The Edge Of Winter"] = 13770 }, -- Zul'tore
+    [33373] = { ["A Blade Fit For A Champion"] = 13778, ["A Worthy Weapon"] = 13779, ["The Edge Of Winter"] = 13780 }, -- Deathstalker Visceri
+    [33379] = { ["A Blade Fit For A Champion"] = 13783, ["A Worthy Weapon"] = 13784, ["The Edge Of Winter"] = 13785 }, -- Eressea Dawnsinger
+    [33403] = { ["A Blade Fit For A Champion"] = 13773, ["A Worthy Weapon"] = 13774, ["The Edge Of Winter"] = 13775 }, -- Runok Wildmane
+    [33405] = { ["A Valiant's Field Training"] = 13765 }, -- Akinos
+    [33434] = { ["Jack Me Some Lumber"] = 13627 }, -- Bezzle Blastbolt
+    [33435] = { ["A Chip Off the Ulduar Block"] = 13681 }, -- Bozzle Blastbolt
+    [33538] = { ["A Valiant's Field Training"] = 13786 }, -- Kethiel Sunlance
+    [33539] = { ["A Valiant's Field Training"] = 13776 }, -- Dern Ragetotem
+    [33540] = { ["A Valiant's Field Training"] = 13771 }, -- Shadow Hunter Mezil-kree
+    [33541] = { ["A Valiant's Field Training"] = 13781 }, -- Sarah Chalke
+    [33542] = { ["A Blade Fit For A Champion"] = 13673, ["A Worthy Weapon"] = 13674, ["The Edge Of Winter"] = 13675 }, -- Magister Edien Sunhollow
+    [33544] = { ["At The Enemy's Gates"] = 13856, ["The Grand Melee"] = 13767 }, -- Morah Worgsister
+    [33545] = { ["At The Enemy's Gates"] = 13857, ["The Grand Melee"] = 13772 }, -- Gahju
+    [33547] = { ["At The Enemy's Gates"] = 13860, ["The Grand Melee"] = 13782 }, -- Handler Dretch
+    [33548] = { ["At The Enemy's Gates"] = 13859, ["The Grand Melee"] = 13787 }, -- Aneera Thuron
+    [33549] = { ["At The Enemy's Gates"] = 13858, ["The Grand Melee"] = 13777 }, -- Anka Clawhoof
+    [33592] = { ["A Blade Fit For A Champion"] = 13757, ["A Worthy Weapon"] = 13758, ["The Edge Of Winter"] = 13759 }, -- Jaelyne Evensong
+    [33593] = { ["A Blade Fit For A Champion"] = 13752, ["A Worthy Weapon"] = 13753, ["The Edge Of Winter"] = 13754 }, -- Colosos
+    [33625] = { ["A Blade Fit For A Champion"] = 13666, ["A Worthy Weapon"] = 13669, ["The Edge Of Winter"] = 13670 }, -- Arcanist Taelis
+    [33646] = { ["Training In The Field"] = 13671 }, -- Avareth Swiftstrike
+    [33647] = { ["Learning The Reins"] = 13625 }, -- Scout Shalyndria
+    [33648] = { ["A Valiant's Field Training"] = 13749 }, -- Tickin Gearspanner
+    [33649] = { ["At The Enemy's Gates"] = 13852, ["The Grand Melee"] = 13750 }, -- Flickin Gearspanner
+    [33652] = { ["A Valiant's Field Training"] = 13760 }, -- Illestria Bladesinger
+    [33654] = { ["At The Enemy's Gates"] = 13855, ["The Grand Melee"] = 13761 }, -- Airae Starseeker
+    [33655] = { ["A Valiant's Field Training"] = 13755 }, -- Saandos
+    [33656] = { ["At The Enemy's Gates"] = 13854, ["The Grand Melee"] = 13756 }, -- Ranii
+    [33658] = { ["Training In The Field"] = 13676 }, -- Amariel Sunsworn
+    [33659] = { ["Learning The Reins"] = 13677 }, -- Galathia Brightdawn
+    [33759] = { ["Battle Before The Citadel"] = { Alliance = 13861, Horde = 13862 }, ["Threat From Above"] = { Alliance = 13682, Horde = 13809 } }, -- Eadric the Pure
+    [33762] = { ["Battle Before The Citadel"] = { Alliance = 13864, Horde = 13863 }, ["Threat From Above"] = { Alliance = 13788, Horde = 13812 } }, -- Crok Scourgebane
+    [33763] = { ["Taking Battle To The Enemy"] = { Alliance = 13789, Horde = 13810 } }, -- Cellian Daybreak
+    [33769] = { ["Taking Battle To The Enemy"] = { Alliance = 13791, Horde = 13813 } }, -- Zor'be the Bloodletter
+    [33770] = { ["Among the Champions"] = { Alliance = 13793, Horde = 13814 } }, -- Illyrie Nightfall
+    [33771] = { ["Among the Champions"] = { Alliance = 13790, Horde = 13811 } }, -- Luuri
+    [34210] = { ["Contributin' To The Cause"] = 13846 }, -- Squire Artie
+    [34771] = { ["A Leg Up"] = 14143, ["Rescue at Sea"] = 14136, ["Stop The Aggressors"] = 14140, ["The Light's Mercy"] = 14144, ["You've Really Done It This Time, Kul"] = 14142 }, -- Girana the Blooded
+    [34880] = { ["A Leg Up"] = 14074, ["Rescue at Sea"] = 14152, ["Stop The Aggressors"] = 14080, ["The Light's Mercy"] = 14077, ["You've Really Done It This Time, Kul"] = 14096 }, -- Narasi Snowdawn
+    [34882] = { ["Deathspeaker Kharos"] = 14105, ["Drottinn Hrothgar"] = 14101, ["Mistcaller Yngvar"] = 14102, ["Ornolf The Scarred"] = 14104 }, -- High Crusader Adelard
+    [34912] = { ["Breakfast Of Champions"] = 14076, ["Gormok Wants His Snobolds"] = 14090, ["What Do You Feed a Yeti, Anyway?"] = 14112 }, -- Savinia Loresong
+    [34914] = { ["Breakfast Of Champions"] = 14092, ["Gormok Wants His Snobolds"] = 14141, ["What Do You Feed a Yeti, Anyway?"] = 14145 }, -- Tylos Dawnrunner
+    [35094] = { ["Get Kraken!"] = 14108, ["The Fate Of The Fallen"] = 14107 }, -- Crusader Silverdawn
 }
 
 
