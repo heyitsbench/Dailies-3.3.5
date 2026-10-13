@@ -193,7 +193,8 @@ end
 
 -- Walk every quest in the log, including quests under collapsed headers
 -- (in 3.3.5 a collapsed zone header hides its quests from GetQuestLogTitle()).
--- fn(index, title, isComplete, isDaily, questID) is called for each quest.
+-- fn(index, title, isComplete, isDaily, questID, header) is called for each quest
+-- (header: the zone or category heading the quest is listed under).
 local function ForEachQuestInLog(fn)
 	local collapsed = {}
 	for i = GetNumQuestLogEntries(), 1, -1 do
@@ -204,10 +205,13 @@ local function ForEachQuestInLog(fn)
 		end
 	end
 
+	local header = nil
 	for i = 1, GetNumQuestLogEntries() do
 		local title, _, _, _, isHeader, _, isComplete, isDaily, questID = GetQuestLogTitle(i)
-		if title and not isHeader and questID and questID > 0 then
-			fn(i, title, isComplete, isDaily, questID)
+		if isHeader then
+			header = title
+		elseif title and questID and questID > 0 then
+			fn(i, title, isComplete, isDaily, questID, header)
 		end
 	end
 
@@ -222,15 +226,46 @@ end
 -- Snapshot of the quest log: [questID] = { title, complete, daily }
 function Dailies.RefreshQuestLog()
 	local log = {}
-	ForEachQuestInLog(function(index, title, isComplete, isDaily, questID)
+	ForEachQuestInLog(function(index, title, isComplete, isDaily, questID, header)
 		log[questID] = {
 			title = title,
 			complete = (isComplete == 1 or isComplete == true),	-- -1 means failed
 			daily = (isDaily == 1 or isDaily == true),
+			header = header,
 		}
 	end)
 	dllocal_questLog = log
+
+	-- quests we know without a zone: use the quest log heading until we're at the quest giver
+	if Dailies_Data and Dailies_Data.Quests then
+		for questID, entry in pairs(log) do
+			local q = Dailies_Data.Quests[questID]
+			if q and (q.Zone == nil or q.Zone == "") and entry.header and entry.header ~= "" then
+				q.Zone = entry.header
+				q.ZoneFromLog = 1	-- a number: the guild message format has no booleans
+			end
+		end
+	end
 	return log
+end
+
+local PLACEHOLDER_TEXT = "Placeholder. This will be populated next time you take the quest."
+local function IsBlank(v) return v == nil or v == "" or v == PLACEHOLDER_TEXT end
+
+-- At a quest giver (accepting, progress or reward window): fill in where the quest is
+-- if we didn't know yet (quests first seen in the quest log, or before this was recorded)
+function Dailies.FillLocation(id)
+	local q = id and Dailies_Data.Quests[id]
+	if not q then return end
+	if IsBlank(q.Zone) or q.ZoneFromLog then
+		local zone = GetZoneText()
+		if zone and zone ~= "" then
+			q.Zone = zone
+			q.ZoneFromLog = nil
+			if IsBlank(q.SubZone) then q.SubZone = GetSubZoneText() or "" end
+		end
+	end
+	if IsBlank(q.NPC) then q.NPC = UnitName("npc") or q.NPC or "" end
 end
 
 local function QuestLog()
@@ -428,6 +463,7 @@ function Dailies.RegisterDaily(id, info)
 	end
 	local q = Dailies_Data.Quests[id]
 	for k, v in pairs(info) do q[k] = v end
+	if not IsBlank(info.Zone) then q.ZoneFromLog = nil end
 	q.Frequency = "Daily"
 	if type(q.Factions) ~= "table" then q.Factions = {} end
 	q.Factions[dllocal_faction] = 1
@@ -437,6 +473,34 @@ function Dailies.RegisterDaily(id, info)
 	Dailies.EnsureToonQuest(id)
 	Dailies.MakeGroupDaily(id)
 	return q
+end
+
+-- Record daily quests in the quest log that we don't know yet.
+-- atQuestGiver: we're standing at the quest giver (just accepted), so the current zone is right;
+-- otherwise (login) the quest log heading is used until we see the quest giver.
+function Dailies.RegisterDailiesInLog(atQuestGiver)
+	ForEachQuestInLog(function(index, questTitle, isComplete, isDaily, questID, header)
+		if (isDaily == 1 or isDaily == true) and Dailies_Data.Quests[questID] == nil then
+			-- quest log rewards are read from the selected entry
+			local previous = GetQuestLogSelection()
+			SelectQuestLogEntry(index)
+			local money = GetQuestLogRewardMoney() or 0
+			local honor = (GetQuestLogRewardHonor and GetQuestLogRewardHonor()) or 0
+			SelectQuestLogEntry(previous or 0)
+
+			local q = Dailies.RegisterDaily(questID, {
+				Title = questTitle or "",
+				Text = PLACEHOLDER_TEXT,		-- filled in next time the quest giver shows it
+				Money = money,
+				Xp = 0,
+				Honor = honor,
+				SubZone = atQuestGiver and (GetSubZoneText() or "") or "",
+				Zone = atQuestGiver and (GetZoneText() or "") or (header or ""),
+				NPC = atQuestGiver and (UnitName("npc") or "") or "",
+			})
+			if not atQuestGiver and (header or "") ~= "" then q.ZoneFromLog = 1 end
+		end
+	end)
 end
 
 -- Tidy up saved data that older versions (or earlier errors) may have left half-written
@@ -1019,27 +1083,7 @@ function Dailies:OnEnable()
 
 
 	-- detect any daily quest that the player might already have in their log
-	ForEachQuestInLog(function(index, questTitle, isComplete, isDaily, questID)
-		if (isDaily == 1 or isDaily == true) and Dailies_Data.Quests[questID] == nil then
-			-- quest log rewards are read from the selected entry
-			local previous = GetQuestLogSelection()
-			SelectQuestLogEntry(index)
-			local money = GetQuestLogRewardMoney() or 0
-			local honor = (GetQuestLogRewardHonor and GetQuestLogRewardHonor()) or 0
-			SelectQuestLogEntry(previous or 0)
-
-			Dailies.RegisterDaily(questID, {
-				Title = questTitle or "",
-				Text = "Placeholder. This will be populated next time you take the quest.",
-				Money = money,
-				Xp = 0,
-				Honor = honor,
-				SubZone = "",			-- will be populated later
-				Zone = "",				-- will be populated later
-				NPC = "",				-- will be populated later
-			})
-		end
-	end)
+	Dailies.RegisterDailiesInLog(false)
 
 	Dailies.ClassifyQuests()
 
@@ -1168,7 +1212,12 @@ function Dailies:QUEST_ACCEPTED(event, logIndex)
 		id = Dailies.FindQuestInLog(title)
 		isDaily = id and QuestLog()[id].daily and 1 or nil
 	end
-	if not id then return end
+	if not id then
+		-- can't tell which quest it was: record any daily in the log we don't know yet
+		Dailies.RegisterDailiesInLog(true)
+		Dailies.ScheduleRefresh(1)
+		return
+	end
 
 	-- a daily we couldn't identify at the quest giver (unknown title, other client language,
 	-- shared quest...): record it now that we know its ID
@@ -1178,14 +1227,15 @@ function Dailies:QUEST_ACCEPTED(event, logIndex)
 		elseif isDaily == 1 or isDaily == true then
 			Dailies.RegisterDaily(id, {
 				Title = title or "",
-				Text = "Placeholder. This will be populated next time you take the quest.",
-				Money = 0, Xp = 0, Honor = 0, SubZone = "", Zone = "", NPC = "",
+				Text = PLACEHOLDER_TEXT,
+				Money = 0, Xp = 0, Honor = 0, SubZone = GetSubZoneText() or "", Zone = GetZoneText() or "", NPC = UnitName("npc") or "",
 				TodayUntil = Dailies.DailyResetTime(),
 			})
 		end
 	end
 
 	if Dailies_Data.Quests[id] then
+		Dailies.FillLocation(id)
 		local tq = Dailies.EnsureToonQuest(id)
 		tq.Accepted = time()
 		tq.Completed = nil
@@ -1215,6 +1265,7 @@ function Dailies:QUEST_COMPLETE(event)
 	dllocal_questLog = nil
 	local id = Dailies.CurrentQuestID()
 	dllocal_turnIn = id
+	Dailies.FillLocation(id)
 
 	-- auto-complete if needed (only when there's no reward to pick and nothing to pay)
 	if id and dllocal_questTabs.ToDo[id] and Dailies_Settings.autoCompleteQuests then
@@ -1230,6 +1281,7 @@ end
 
 function Dailies:QUEST_PROGRESS(event)
 	local id = Dailies.CurrentQuestID()
+	Dailies.FillLocation(id)
 
 	-- auto-complete if needed
 	if id and dllocal_questTabs.ToDo[id] and Dailies_Settings.autoCompleteQuests and IsQuestCompletable() then
@@ -2757,15 +2809,26 @@ function Dailies:OnCommReceived(prefix, message, distribution, sender)
 
 					if Dailies_Data.Quests[id] == nil then Dailies_Data.Quests[id] = {} end
 					local q = Dailies_Data.Quests[id]
-					q.Title = tostring(newDaily.Title or "")
-					q.Text = tostring(newDaily.Text or "")
-					q.Frequency = newDaily.Frequency or ""
-					q.Money = tonumber(newDaily.Money) or 0
-					q.Xp = tonumber(newDaily.Xp) or 0
-					q.Honor = tonumber(newDaily.Honor) or 0 
-					q.SubZone = tostring(newDaily.SubZone or "")
-					q.Zone = tostring(newDaily.Zone or "")
-					q.NPC = tostring(newDaily.NPC or "")
+					-- only take what the guildie actually knows: never replace our data with blanks
+					-- (or the placeholder text) from a quest they only saw in their quest log
+					local function take(field, value)
+						value = value ~= nil and tostring(value) or ""
+						if not IsBlank(value) and (field ~= "Zone" or IsBlank(q.Zone) or q.ZoneFromLog or not newDaily.ZoneFromLog) then
+							q[field] = value
+							if field == "Zone" then q.ZoneFromLog = newDaily.ZoneFromLog and 1 or nil end
+						elseif q[field] == nil then
+							q[field] = ""
+						end
+					end
+					take("Title", newDaily.Title)
+					take("Text", newDaily.Text)
+					take("Zone", newDaily.Zone)
+					take("SubZone", newDaily.SubZone)
+					take("NPC", newDaily.NPC)
+					q.Frequency = newDaily.Frequency or q.Frequency or ""
+					if (tonumber(newDaily.Money) or 0) > 0 or q.Money == nil then q.Money = tonumber(newDaily.Money) or 0 end
+					if (tonumber(newDaily.Xp) or 0) > 0 or q.Xp == nil then q.Xp = tonumber(newDaily.Xp) or 0 end
+					if (tonumber(newDaily.Honor) or 0) > 0 or q.Honor == nil then q.Honor = tonumber(newDaily.Honor) or 0 end
 
 					-- don't overwrite Faction. Add to it instead
 					if type(q.Factions) ~= "table" then q.Factions = {} end 
