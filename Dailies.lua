@@ -3,17 +3,14 @@
 --	Copyright (c) 2019-2021 by Antoine Desmarets.
 --	Cixi/Gaya of Remulos Oceanic / WoW Classic Horde
 --
+--	3.3.5 (Wrath of the Lich King) port by heyitsbench:
+--	https://github.com/heyitsbench/Dailies-3.3.5
+--	The port is maintained separately from the original addon. Please report
+--	problems with it there, not to the original author or other ports' authors.
+--
 --	Dailies is distributed in the hope that it will be useful/entertaining
 --	but WITHOUT ANY WARRANTY
 --
--------------------------------------------------------------------------
-
--- Done in v031
---  - Updated ToC for Phase 2
---  - Updated Libraries
---  - Updated to use the newer C_GossipInfo API
-
-
 -------------------------------------------------------------------------
 -- ADDON VARIABLES
 -------------------------------------------------------------------------
@@ -26,10 +23,13 @@ local _G = getfenv(0)
 
 
 local dllocal_version = GetAddOnMetadata(dllocal_addonName, "Version")
-local dllocal_statusText = string.format("v%s by Cixi/Gaya@Remulos", dllocal_version)	-- Default status text"
+local dllocal_portURL = "https://github.com/heyitsbench/Dailies-3.3.5"				-- this 3.3.5 port
+local dllocal_supportURL = dllocal_portURL .. "/issues"								-- where to report problems with it
+local dllocal_statusText = string.format("v%s by Cixi/Gaya@Remulos", dllocal_version)	-- Default status text (short: the status bar is narrow)
 local dllocal_charKey = UnitName("player") .. "-" .. GetRealmName()					-- Character unique name
 local dllocal_prefix = "Dailies_Channel"											-- used for addon chat communications
 local dllocal_prefix_version = "Dailies_Version"									-- used for addon version check
+local dllocal_prefix_update = "Dailies_Update"										-- tells guildies about newer versions (older versions don't listen)
 
 local dllocal_expac = 3		-- default expac
 
@@ -745,6 +745,15 @@ local dllocal_options = {
 			width = "full",
 			order = 50,
 		},
+		notifyNewerVersion = {
+			type = "toggle",
+			name = "Tell me when guildmates have a newer version",
+			desc = "When a guildmate runs a newer version of Dailies, say so at login and show where to download it.",
+			get = function(info) return Dailies_Settings.notifyNewerVersion end,
+			set = function(info, val) Dailies_Settings.notifyNewerVersion = val end,
+			width = "full",
+			order = 55,
+		},
 		serverDailyResetTime = {
 			type = "range",
 			name = "Fallback Daily Reset Hour (UTC)",
@@ -911,10 +920,23 @@ local dllocal_options = {
 		},
 		credits = {
 			type = "description",
-			name = " Join the discord server to bugs/suggestions/comments:\n |cffffd100https://discord.gg/MpfDeBZ|r\n\n Hope you like the addon,\n /Hug from Cixi/Gaya @ Remulos Horde",
+			name = " Dailies was created by Cixi/Gaya @ Remulos for WoW Classic.\n"
+				.. " This 3.3.5 port is by |cffffd100heyitsbench|r and is maintained separately, so please don't\n"
+				.. " contact the original author or the authors of other ports about it.\n\n"
+				.. " Bugs, suggestions or questions about this version:",
 			width = "full",
 			fontSize = "medium",
 			order = 200,
+		},
+		supportLink = {
+			-- an edit box, so the link can be copied (3.3.5 can't copy plain text)
+			type = "input",
+			name = "",
+			desc = "Click in the box, select the link and press Ctrl+C to copy it.",
+			get = function(info) return dllocal_supportURL end,
+			set = function(info, val) end,
+			width = "full",
+			order = 210,
 		},
 	}
 }
@@ -958,7 +980,7 @@ function Dailies:OnInitialize()
 	LibStub("AceConfig-3.0"):RegisterOptionsTable("Dailies", dllocal_options, nil)
 	LibStub("AceConfigDialog-3.0"):AddToBlizOptions("Dailies"):SetParent(InterfaceOptionsFramePanelContainer)
 	--AceConfig:RegisterOptionsTable(dllocal_addonName.."_cmd", nil, nil)
-	print("|cffff00ff[Dailies]|r "..dllocal_statusText)
+	print(string.format("|cffff00ff[Dailies]|r v%s, 3.3.5 port by heyitsbench (original addon by Cixi/Gaya)", tostring(dllocal_version)))
 end
 
 -- mark new today's daily
@@ -1005,6 +1027,7 @@ function Dailies:OnEnable()
 
 	Dailies:RegisterComm(dllocal_prefix)
 	Dailies:RegisterComm(dllocal_prefix_version)
+	Dailies:RegisterComm(dllocal_prefix_update)
 
 	dllocal_faction = UnitFactionGroup("player")
 
@@ -1050,6 +1073,7 @@ function Dailies:OnEnable()
 
 	if Dailies_Settings.runScanOnLogin == nil then Dailies_Settings.runScanOnLogin = true end
 	if Dailies_Settings.scanForAnyDailies == nil then Dailies_Settings.scanForAnyDailies = false end
+	if Dailies_Settings.notifyNewerVersion == nil then Dailies_Settings.notifyNewerVersion = true end
 	if Dailies_Settings.serverDailyResetTime == nil then Dailies_Settings.serverDailyResetTime = 6 end
 
 	if Dailies_Settings.showSeasonalDailies == nil then Dailies_Settings.showSeasonalDailies = true end
@@ -1097,6 +1121,9 @@ function Dailies:OnEnable()
 		end)
 	end
 
+	-- newer version notice (and tell the guild which version we run)
+	Timer.After(12, Dailies.CheckForUpdate)
+
 
 	Dailies_Broker = Dailies_Broker or dllocal_ldb:NewDataObject("Dailies_Broker", {
 		type = "data source",
@@ -1115,6 +1142,8 @@ function Dailies:OnEnable()
 		end,
 		OnTooltipShow = function(tooltip)
 			tooltip:AddLine("|cFFffffffDailies|r |cff808080v"..dllocal_version.."|r")
+			local newer = Dailies.NewerVersion()
+			if newer then tooltip:AddLine("|cff00ff00v" .. newer .. " is available|r") end
 
 			if 	dllocal_brokerlabel ~= nil and dllocal_brokervalue ~= nil then
 				tooltip:AddLine(" ")
@@ -2782,6 +2811,107 @@ function Dailies.sendProgress(id, bytesSent, bytesTotal)
 end
 
 -------------------------------------------------------------------------
+-------------------------------------------------------------------------
+-- Newer version notice
+-- At login we tell the guild which version we run, on a prefix older versions
+-- don't listen to. Guildmates running a newer version whisper theirs back. The
+-- newest version seen is remembered, so the notice comes back at each login
+-- until the addon is updated (or nobody has been seen with it for two weeks).
+-------------------------------------------------------------------------
+
+local UPDATE_URL = GetAddOnMetadata(dllocal_addonName, "X-Update-URL") or dllocal_portURL
+local NEWER_VERSION_MAX_AGE = 14 * 86400
+local dllocal_updateNotified = nil		-- newest version announced this session
+local dllocal_versionReplied = {}		-- guildmates we already told about our version
+
+-- "031" < "032", "1.9" < "1.10": compared number by number. nil if either isn't a version.
+function Dailies.CompareVersions(a, b)
+	if type(a) ~= "string" or type(b) ~= "string" or #a > 20 or #b > 20 then return nil end
+	local pa, pb = {}, {}
+	for n in a:gmatch("%d+") do pa[#pa + 1] = tonumber(n) end
+	for n in b:gmatch("%d+") do pb[#pb + 1] = tonumber(n) end
+	if #pa == 0 or #pb == 0 then return nil end
+	for i = 1, math.max(#pa, #pb) do
+		local x, y = pa[i] or 0, pb[i] or 0
+		if x ~= y then return x < y and -1 or 1 end
+	end
+	return 0
+end
+
+-- the newer version a guildmate has, if we know of one
+function Dailies.NewerVersion()
+	local newer = Dailies_Settings and Dailies_Settings.newerVersion
+	if type(newer) == "table" and Dailies.CompareVersions(newer.Version, dllocal_version) == 1 then return newer.Version end
+end
+
+-- 3.3.5 can't copy text out of the chat window, so the link goes in an edit box
+StaticPopupDialogs["DAILIES_NEWER_VERSION"] = {
+	text = "A newer version of Dailies is available: |cffffd100v%s|r (you have v%s).\n\nPress Ctrl+C to copy the download link:",
+	button1 = OKAY,
+	hasEditBox = 1,
+	hasWideEditBox = 1,
+	maxLetters = 200,
+	OnShow = function(self)
+		self.wideEditBox:SetText(UPDATE_URL)
+		self.wideEditBox:SetFocus()
+		self.wideEditBox:HighlightText()
+	end,
+	EditBoxOnTextChanged = function(self)
+		-- read-only: put the link back if something gets typed over it
+		if self:GetParent():IsShown() and self:GetText() ~= UPDATE_URL then
+			self:SetText(UPDATE_URL)
+			self:HighlightText()
+		end
+	end,
+	EditBoxOnEnterPressed = function(self) self:GetParent():Hide() end,
+	EditBoxOnEscapePressed = function(self) self:GetParent():Hide() end,
+	timeout = 0,
+	whileDead = 1,
+	hideOnEscape = 1,
+}
+
+function Dailies.NotifyNewerVersion()
+	if not Dailies_Settings.notifyNewerVersion then return end
+	local version = Dailies.NewerVersion()
+	if not version then return end
+	if dllocal_updateNotified and Dailies.CompareVersions(version, dllocal_updateNotified) ~= 1 then return end	-- already said
+	dllocal_updateNotified = version
+	print("|cffff00ff[Dailies]|r Version |cffffd100v" .. version .. "|r is available (you have v" .. tostring(dllocal_version)
+		.. "). Download it from |cff69ccf0" .. UPDATE_URL .. "|r")
+	-- the pop-up only once per version
+	if Dailies_Settings.newerVersionPopup ~= version then
+		Dailies_Settings.newerVersionPopup = version
+		StaticPopup_Show("DAILIES_NEWER_VERSION", version, tostring(dllocal_version))
+	end
+end
+
+-- a guildmate runs this version (who it was isn't kept or shown)
+function Dailies.SawVersion(version)
+	if Dailies.CompareVersions(version, dllocal_version) ~= 1 then return end
+	local newer = Dailies_Settings.newerVersion
+	local cmp = type(newer) == "table" and Dailies.CompareVersions(version, newer.Version)
+	if not cmp or cmp >= 0 then
+		Dailies_Settings.newerVersion = { Version = version, Seen = time() }
+	end
+	Dailies.NotifyNewerVersion()
+end
+
+-- at login
+function Dailies.CheckForUpdate()
+	-- forget a newer version once we run it, or when nobody has been seen with it for a while
+	local newer = Dailies_Settings.newerVersion
+	if newer ~= nil and (type(newer) ~= "table" or Dailies.CompareVersions(newer.Version, dllocal_version) ~= 1
+			or (tonumber(newer.Seen) or 0) < time() - NEWER_VERSION_MAX_AGE) then
+		Dailies_Settings.newerVersion = nil
+	elseif newer ~= nil then
+		newer.From = nil		-- names were kept by an earlier build
+	end
+	Dailies.NotifyNewerVersion()
+	if IsInGuild() and dllocal_version then
+		Dailies:SendCommMessage(dllocal_prefix_update, "HELLO " .. dllocal_version, "GUILD", "")
+	end
+end
+
 function Dailies:OnCommReceived(prefix, message, distribution, sender)
 
 	if not (Dailies_Data and Dailies_Data.Quests and Dailies_Settings) then return end	-- not enabled yet
@@ -2882,8 +3012,22 @@ function Dailies:OnCommReceived(prefix, message, distribution, sender)
 			if Dailies.CheckExists(sender) then Dailies:SendCommMessage(dllocal_prefix_version, dllocal_version, "WHISPER", sender ) end
 		else
 			print("|cffff00ff[Dailies]|r |cffffd100" .. PlayerLink(sender) .. "|r is using |cffffd100v" .. tostring(message) .. "|r") 
+			Dailies.SawVersion(tostring(message))
 		end
 
+	elseif prefix == dllocal_prefix_update and sender ~= UnitName("player") then
+		-- "HELLO <version>" when a guildmate logs in, "NEWER <version>" in reply from a newer one
+		local kind, version = tostring(message):match("^(%u+) (%S+)$")
+		local cmp = version and Dailies.CompareVersions(version, dllocal_version)
+		if cmp == 1 then
+			Dailies.SawVersion(version)
+		elseif cmp == -1 and kind == "HELLO" and dllocal_version and not dllocal_versionReplied[sender] then
+			-- they're behind: tell them (once a session)
+			dllocal_versionReplied[sender] = true
+			if Dailies.CheckExists(sender) then
+				Dailies:SendCommMessage(dllocal_prefix_update, "NEWER " .. dllocal_version, "WHISPER", sender)
+			end
+		end
 	end
 end 
 

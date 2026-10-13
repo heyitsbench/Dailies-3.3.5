@@ -4,8 +4,9 @@
 ## Notes: Plan your Dailies
 ## SavedVariables: Dailies_Data, Dailies_Settings
 ## SavedVariablesPerCharacter: 
-## Version: 031
-## X-Website: https://warcraftratings.com
+## Version: 032
+## X-Website: https://github.com/heyitsbench/Dailies-3.3.5
+## X-Update-URL: https://github.com/heyitsbench/Dailies-3.3.5
 embeds.xml
 Dailies.lua
 DailiesData.lua
