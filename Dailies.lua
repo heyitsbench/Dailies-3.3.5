@@ -53,14 +53,14 @@ local dllocal_faction = ""				-- to mark quest as one or the other or both
 local dllocal_fullWidth = 680			-- width of the frame
 local dllocal_fullHeight = 600			-- height of the frame
 
-local dllocal_questTabs = {}			-- all quests in their respective tabs
+local dllocal_questTabs = { ToDo = {}, Completed = {}, Ignored = {}, All = {} }	-- all quests in their respective tabs
 local dllocal_info_heading				-- info panel Quest Heading
 local dllocal_info_desc					-- info panel Quest Desc
 local dllocal_info_npc					-- info panel Quest NPC
 local dllocal_info_zone					-- info panel Quest Zone/Subzone
 local dllocal_info_count				-- info panel Quest number of times done
 local dllocal_info_record               -- info panel Quest fastest completion time
-local dllocal_info_coord				-- info panel Coords
+local dllocal_info_coords				-- info panel Coords
 local dllocal_info_inst					-- related instance
 local dllocal_info_attune				-- related Attune chain
 local dllocal_tzdiff = 0 				-- timezone difference in minutes (to check UTC reset times)
@@ -80,7 +80,402 @@ dllocal_repfaction = {}				-- reputation factions
 dllocal_attuneId = {}				-- quest Attune IDs
 dllocal_exclu = {}					-- mutually exclusive quests
 dllocal_ProfessionNames = {} 		-- profession names in all locales
-dllocal_completedQuests = {} 		-- completed quest ID list
+
+local dllocal_questLog = nil			-- cached snapshot of the quest log, see Dailies.RefreshQuestLog()
+local dllocal_pendingDetail = nil		-- details of the daily last shown at a quest giver (confirmed on accept)
+local dllocal_turnIn = nil				-- quest ID shown on the reward screen, waiting to be handed in
+local dllocal_refreshTimer = nil		-- pending (debounced) list refresh
+
+
+-------------------------------------------------------------------------
+-- 3.3.5 COMPATIBILITY
+-- The original addon was written for WotLK Classic (3.4.x). The helpers
+-- below replace the Classic-only APIs. They are all local to the addon so
+-- nothing leaks into, or gets overwritten from, the global namespace that
+-- is shared with every other addon.
+-------------------------------------------------------------------------
+
+-- Debug printing
+local function PrintHandler(message, debug)
+	if dllocal_debug == true or debug == false then
+		print(message)
+	end
+end
+
+-- Minimal C_Timer replacement (C_Timer does not exist in 3.3.5)
+local Timer = {}
+do
+	local timers = {}
+	local timerFrame = CreateFrame("Frame")
+	timerFrame:Hide()
+	timerFrame:SetScript("OnUpdate", function(self)
+		local now = GetTime()
+		local i = 1
+		while i <= #timers do
+			local t = timers[i]
+			if t.cancelled then
+				table.remove(timers, i)
+			elseif now >= t.fireAt then
+				table.remove(timers, i)
+				xpcall(t.callback, geterrorhandler())
+			else
+				i = i + 1
+			end
+		end
+		if #timers == 0 then self:Hide() end
+	end)
+
+	local function Cancel(self) self.cancelled = true end
+
+	function Timer.NewTimer(delay, callback)
+		local t = { fireAt = GetTime() + (delay or 0), callback = callback, Cancel = Cancel }
+		timers[#timers + 1] = t
+		timerFrame:Show()
+		return t
+	end
+
+	function Timer.After(delay, callback)
+		Timer.NewTimer(delay, callback)
+	end
+end
+
+-- GetPlayerLink() does not exist in 3.3.5
+local function PlayerLink(name)
+	return "|Hplayer:" .. name .. "|h[" .. name .. "]|h"
+end
+
+-- 3.3.5 names have no "-Realm" part, but strip one just in case
+local function ShortName(name)
+	if not name then return nil end
+	return name:match("^([^%-]+)") or name
+end
+
+-- Profession names for the client language (enGB clients fall back to enUS)
+local function GetProfessionNames()
+	return dllocal_ProfessionNames[GetLocale()] or dllocal_ProfessionNames["enUS"] or {}
+end
+
+-- Known professions -> { [skillLineID] = rank }
+-- In 3.3.5 a collapsed header in the Skills tab hides its skills from
+-- GetSkillLineInfo(), so expand them for the scan and collapse them again after.
+local function ScanProfessions()
+	local byName = {}
+	for id, name in pairs(GetProfessionNames()) do byName[name] = id end
+
+	local collapsed = {}
+	for i = GetNumSkillLines(), 1, -1 do
+		local name, isHeader, isExpanded = GetSkillLineInfo(i)
+		if isHeader and not isExpanded then
+			collapsed[name] = true
+			ExpandSkillHeader(i)
+		end
+	end
+
+	local found = {}
+	for i = 1, GetNumSkillLines() do
+		local name, isHeader, _, skillRank = GetSkillLineInfo(i)
+		if name and not isHeader and byName[name] then
+			found[byName[name]] = skillRank
+		end
+	end
+
+	if next(collapsed) then
+		for i = GetNumSkillLines(), 1, -1 do
+			local name, isHeader, isExpanded = GetSkillLineInfo(i)
+			if isHeader and isExpanded and collapsed[name] then CollapseSkillHeader(i) end
+		end
+	end
+	return found
+end
+
+-- Walk every quest in the log, including quests under collapsed headers
+-- (in 3.3.5 a collapsed zone header hides its quests from GetQuestLogTitle()).
+-- fn(index, title, isComplete, isDaily, questID) is called for each quest.
+local function ForEachQuestInLog(fn)
+	local collapsed = {}
+	for i = GetNumQuestLogEntries(), 1, -1 do
+		local title, _, _, _, isHeader, isCollapsed = GetQuestLogTitle(i)
+		if isHeader and isCollapsed then
+			collapsed[title] = true
+			ExpandQuestHeader(i)
+		end
+	end
+
+	for i = 1, GetNumQuestLogEntries() do
+		local title, _, _, _, isHeader, _, isComplete, isDaily, questID = GetQuestLogTitle(i)
+		if title and not isHeader and questID and questID > 0 then
+			fn(i, title, isComplete, isDaily, questID)
+		end
+	end
+
+	if next(collapsed) then
+		for i = GetNumQuestLogEntries(), 1, -1 do
+			local title, _, _, _, isHeader, isCollapsed = GetQuestLogTitle(i)
+			if isHeader and not isCollapsed and collapsed[title] then CollapseQuestHeader(i) end
+		end
+	end
+end
+
+-- Snapshot of the quest log: [questID] = { title, complete, daily }
+function Dailies.RefreshQuestLog()
+	local log = {}
+	ForEachQuestInLog(function(index, title, isComplete, isDaily, questID)
+		log[questID] = {
+			title = title,
+			complete = (isComplete == 1 or isComplete == true),	-- -1 means failed
+			daily = (isDaily == 1 or isDaily == true),
+		}
+	end)
+	dllocal_questLog = log
+	return log
+end
+
+local function QuestLog()
+	return dllocal_questLog or Dailies.RefreshQuestLog()
+end
+
+function Dailies.FindQuestInLog(title)
+	if not title then return nil end
+	for questID, entry in pairs(QuestLog()) do
+		if entry.title == title then return questID end
+	end
+	return nil
+end
+
+-- 3.3.5 has no GetQuestID(), so work out the ID of the quest currently shown
+-- at the quest giver from its title:
+--  1) the quest log (quest already accepted: QUEST_PROGRESS / QUEST_COMPLETE)
+--  2) a real GetQuestID() if the client has one
+--  3) quests we've already learned for our faction (any client language)
+--  4) the English title list in DailiesData.lua
+function Dailies.CurrentQuestID()
+	local title = GetTitleText()
+	if not title or title == "" then return nil end
+
+	local id = Dailies.FindQuestInLog(title)
+	if id then return id end
+
+	if type(_G.GetQuestID) == "function" then
+		local ok, gid = pcall(_G.GetQuestID)
+		if ok and type(gid) == "number" and gid > 0 then return gid end
+	end
+
+	local sameFaction, otherFaction
+	for kq, q in pairs(Dailies_Data.Quests) do
+		if q.Title == title then
+			if q.Factions and q.Factions[dllocal_faction] == 1 then sameFaction = kq
+			else otherFaction = otherFaction or kq end
+		end
+	end
+	return sameFaction or (dllocal_dailyids and dllocal_dailyids[title]) or otherFaction
+end
+
+-- Make sure this toon has a usable entry for a quest
+function Dailies.EnsureToonQuest(id)
+	local quests = Dailies_Data.Toons[dllocal_charKey].Quests
+	local tq = quests[id]
+	if type(tq) ~= "table" then
+		tq = {}
+		quests[id] = tq
+	end
+	if tq.Ignored == nil then tq.Ignored = false end
+	if type(tq.Order) ~= "number" then
+		local maxOrder = 0
+		for _, other in pairs(quests) do
+			if type(other) == "table" and type(other.Order) == "number" and other.Order > maxOrder then maxOrder = other.Order end
+		end
+		tq.Order = maxOrder + 1
+	end
+	if tq.TimesCompleted == nil then tq.TimesCompleted = 0 end
+	return tq
+end
+
+-- Store (or refresh) what we know about a daily quest
+function Dailies.RegisterDaily(id, info)
+	if Dailies_Data.Quests[id] == nil then
+		Dailies_Data.Quests[id] = {}
+		if Dailies_Settings.showReceivedDailies then print("|cffff00ff[Dailies]|r New daily quest detected: |cffffd100" .. (info.Title or "?") .. "|r") end
+	end
+	local q = Dailies_Data.Quests[id]
+	for k, v in pairs(info) do q[k] = v end
+	q.Frequency = "Daily"
+	if type(q.Factions) ~= "table" then q.Factions = {} end
+	q.Factions[dllocal_faction] = 1
+	if type(q.Seen) ~= "table" then q.Seen = {} end
+	q.Seen[GetRealmName()] = 1
+
+	Dailies.EnsureToonQuest(id)
+	Dailies.MakeGroupDaily(id)
+	return q
+end
+
+-- Tidy up saved data that older versions (or earlier errors) may have left half-written
+function Dailies.SanitizeSavedData()
+	if type(Dailies_Data.Quests) ~= "table" then Dailies_Data.Quests = {} end
+	if type(Dailies_Data.Toons) ~= "table" then Dailies_Data.Toons = {} end
+
+	-- quest IDs must be numbers and entries must be tables
+	local badKeys = {}
+	for k, q in pairs(Dailies_Data.Quests) do
+		if type(k) ~= "number" or type(q) ~= "table" then badKeys[#badKeys + 1] = k end
+	end
+	for _, k in ipairs(badKeys) do
+		local q = Dailies_Data.Quests[k]
+		Dailies_Data.Quests[k] = nil
+		local n = tonumber(k)
+		if n and type(q) == "table" and Dailies_Data.Quests[n] == nil then Dailies_Data.Quests[n] = q end
+	end
+
+	for k, q in pairs(Dailies_Data.Quests) do
+		if type(q.Title) ~= "string" or q.Title == "" then q.Title = "Quest #" .. k end
+		if type(q.Text) ~= "string" then q.Text = "" end
+		if type(q.Zone) ~= "string" then q.Zone = "" end
+		if type(q.SubZone) ~= "string" then q.SubZone = "" end
+		if type(q.NPC) ~= "string" then q.NPC = "" end
+		q.Money = tonumber(q.Money) or 0
+		q.Honor = tonumber(q.Honor) or 0
+		q.Xp = tonumber(q.Xp) or 0
+		if q.TodayUntil ~= nil then q.TodayUntil = tonumber(q.TodayUntil) end
+		if type(q.Factions) ~= "table" then q.Factions = {} end
+		if type(q.Seen) ~= "table" then q.Seen = {} end
+	end
+
+	for kt, t in pairs(Dailies_Data.Toons) do
+		if type(t) ~= "table" then
+			Dailies_Data.Toons[kt] = nil
+		elseif type(t.Quests) ~= "table" then
+			t.Quests = {}
+		else
+			for kq, tq in pairs(t.Quests) do
+				if type(tq) ~= "table" then t.Quests[kq] = nil end
+			end
+		end
+	end
+
+	if type(Dailies_Settings.minimapButtonPosition) ~= "table" then Dailies_Settings.minimapButtonPosition = {} end
+end
+
+-- Daily completion tracking.
+-- On 3.3.5 servers daily quests never appear in the "completed quests" list
+-- (GetQuestsCompleted), so the addon keeps its own record: a daily counts as
+-- done if we handed it in after the most recent daily reset.
+function Dailies.IsCompletedToday(kq)
+	if Dailies.AlreadyHaveQuest(kq) then return false end	-- still in the log, so not handed in
+
+	local tq = Dailies_Data.Toons[dllocal_charKey] and Dailies_Data.Toons[dllocal_charKey].Quests[kq]
+	if tq and tq.Completed then
+		return tq.Completed >= Dailies.LastResetTime()
+	end
+	return false
+end
+
+-- Called once a hand-in has been confirmed
+function Dailies.RecordCompletion(id)
+	local q = Dailies_Data.Quests[id]
+	if not q then return end
+	local tq = Dailies.EnsureToonQuest(id)
+	local now = time()
+
+	-- a daily can only be handed in once per reset: never count it twice
+	if tq.Completed and tq.Completed >= Dailies.LastResetTime() then return end
+
+	tq.Completed = now
+	tq.TimesCompleted = (tq.TimesCompleted or 0) + 1
+
+	if type(tq.Duration) ~= "table" then tq.Duration = {} end
+	local d = tq.Duration
+	if tq.Accepted and now >= tq.Accepted then
+		d.Current = now - tq.Accepted
+		if d.Fastest == nil or d.Current < d.Fastest then d.Fastest = d.Current end
+		if d.Slowest == nil or d.Current > d.Slowest then d.Slowest = d.Current end
+	end
+	tq.Accepted = nil
+
+	local toon = Dailies_Data.Toons[dllocal_charKey]
+	toon.TotalGold = (toon.TotalGold or 0) + (q.Money or 0)
+	toon.TotalDailies = (toon.TotalDailies or 0) + 1
+	Dailies_Data.TotalGold = (Dailies_Data.TotalGold or 0) + (q.Money or 0)
+	Dailies_Data.TotalDailies = (Dailies_Data.TotalDailies or 0) + 1
+
+	-- if it came from a random pool (fishing, cooking, dungeon...), it was today's one
+	Dailies.MakeGroupDaily(id)
+	Dailies.ScheduleRefresh(0.2)
+end
+
+-- Every hand-in goes through GetQuestReward(). Count the quest once it has
+-- actually left the log (a hand-in can be refused, e.g. with full bags).
+hooksecurefunc("GetQuestReward", function()
+	local id = dllocal_turnIn
+	dllocal_turnIn = nil
+	if not id or not Dailies_Data or not Dailies_Data.Quests or not Dailies_Data.Quests[id] then return end
+
+	local attempts = 0
+	local function check()
+		attempts = attempts + 1
+		if not Dailies.RefreshQuestLog()[id] then
+			Dailies.RecordCompletion(id)
+		elseif attempts < 4 then
+			Timer.After(1.5, check)
+		end
+	end
+	Timer.After(0.5, check)
+end)
+
+-- Debounced refresh of the quest buckets / broker / open window
+function Dailies.ScheduleRefresh(delay)
+	if dllocal_refreshTimer then dllocal_refreshTimer:Cancel() end
+	dllocal_refreshTimer = Timer.NewTimer(delay or 1, function()
+		dllocal_refreshTimer = nil
+		if dllocal_frame and dllocal_frame:IsVisible() then
+			Dailies.ShowTabContent()		-- re-classifies as well
+		else
+			Dailies.ClassifyQuests()
+		end
+	end)
+end
+
+-- Today's to-do daily with this title, if any
+function Dailies.ToDoQuestByTitle(title)
+	if not title then return nil end
+	for id in pairs(dllocal_questTabs.ToDo) do
+		if Dailies_Data.Quests[id] and Dailies_Data.Quests[id].Title == title then return id end
+	end
+	return nil
+end
+
+-- Gossip quest lists. In 3.3.5 GetGossipAvailableQuests() returns 5 values per
+-- quest (title, level, isTrivial, isDaily, isRepeatable) and
+-- GetGossipActiveQuests() returns 4 (title, level, isTrivial, isComplete).
+-- The stride is worked out from the counts in case a server sends otherwise.
+local function GossipStride(num, default, ...)
+	local total = select("#", ...)
+	if num and num > 0 and total >= num and total % num == 0 then return total / num end
+	return default
+end
+
+local function CollectGossipQuests(stride, ...)
+	local quests = {}
+	for i = 1, select("#", ...), stride do
+		local title, level, isTrivial, flag4 = select(i, ...)
+		quests[#quests + 1] = { title = title, level = level, isTrivial = isTrivial, flag4 = flag4 }
+	end
+	return quests
+end
+
+local function GossipAvailableQuests()
+	local stride = GossipStride(GetNumGossipAvailableQuests(), 5, GetGossipAvailableQuests())
+	local quests = CollectGossipQuests(stride, GetGossipAvailableQuests())
+	for _, quest in ipairs(quests) do
+		-- only trust the daily flag when the layout is the known 3.3.5 one
+		if stride == 5 then quest.isDaily = quest.flag4 and true or false end
+	end
+	return quests
+end
+
+local function GossipActiveQuests()
+	local stride = GossipStride(GetNumGossipActiveQuests(), 4, GetGossipActiveQuests())
+	return CollectGossipQuests(stride, GetGossipActiveQuests())
+end
 
 local dllocal_options = {
     name = "Dailies",
@@ -132,8 +527,8 @@ local dllocal_options = {
 		},
 		serverDailyResetTime = {
 			type = "range",
-			name = "Server Daily Reset Time",
-			desc = "The time (in realm time) that daily quests are reset server-side",
+			name = "Fallback Daily Reset Hour (UTC)",
+			desc = "The reset time is normally read from the server. This hour (UTC) is only used if the server doesn't report it.",
             min = 0,
             max = 23,
             step = 1,
@@ -231,10 +626,7 @@ local dllocal_options = {
 			set = function(info, val) 
 				Dailies_Settings.showTBCDailies = val 
 				-- need async otherwise the quest is not detected as completed
-				C_Timer.After(0.2, function()	
-					Dailies.ClassifyQuests() 
-					if dllocal_frame and dllocal_frame:IsVisible() then Dailies.ShowTabContent() end
-				end) 
+				Dailies.ScheduleRefresh(0.2)
 			end,
 			width = "full",
 			order = 150,
@@ -247,10 +639,7 @@ local dllocal_options = {
 			set = function(info, val)
 				Dailies_Settings.showWotLKDailies = val 
 				-- need async otherwise the quest is not detected as completed
-				C_Timer.After(0.2, function()	
-					Dailies.ClassifyQuests() 
-					if dllocal_frame and dllocal_frame:IsVisible() then Dailies.ShowTabContent() end
-				end) 
+				Dailies.ScheduleRefresh(0.2)
 			end,
 			width = "full",
 			order = 160,
@@ -263,10 +652,7 @@ local dllocal_options = {
 			set = function(info, val) 
 				Dailies_Settings.showSeasonalDailies = val 
 				-- need async otherwise the quest is not detected as completed
-				C_Timer.After(0.2, function()	
-					Dailies.ClassifyQuests() 
-					if dllocal_frame and dllocal_frame:IsVisible() then Dailies.ShowTabContent() end
-				end) 
+				Dailies.ScheduleRefresh(0.2)
 			end,
 			width = "full",
 			order = 170,
@@ -279,10 +665,7 @@ local dllocal_options = {
 			set = function(info, val) 
 				Dailies_Settings.showWrathDungeonDailies = val 
 				-- need async otherwise the quest is not detected as completed
-				C_Timer.After(0.2, function()	
-					Dailies.ClassifyQuests() 
-					if dllocal_frame and dllocal_frame:IsVisible() then Dailies.ShowTabContent() end
-				end) 
+				Dailies.ScheduleRefresh(0.2)
 			end,
 			width = "full",
 			order = 180,
@@ -364,22 +747,21 @@ function Dailies:OnEnable()
 	-- Called when the addon is enabled
 	self:RegisterEvent("QUEST_DETAIL")					--	get quest details from quest screen, even if not accepted
 	self:RegisterEvent("QUEST_ACCEPTED")				-- 	quest accept
-	self:RegisterEvent("QUEST_FINISHED")				--	quest completion
+	self:RegisterEvent("QUEST_FINISHED")				--	quest window closed
 	self:RegisterEvent("UNIT_QUEST_LOG_CHANGED")		--  used to check quest abandons
-	self:RegisterEvent("QUEST_COMPLETE")				--  used to trigger auto-complete (step 2)
+	self:RegisterEvent("QUEST_LOG_UPDATE")				--  invalidates the cached quest log
+	self:RegisterEvent("QUEST_COMPLETE")				--  reward screen: remembers the quest for hand-in tracking, auto-complete (step 2)
 	self:RegisterEvent("QUEST_PROGRESS")				--  used to trigger auto-complete (step 1)
 	self:RegisterEvent("GOSSIP_SHOW")					--  used to trigger auto-complete and auto-accept
-    QueryQuestsCompleted()
-	if IsInGuild() then
-		self:RegisterEvent("GUILD_ROSTER_UPDATE")
-		dllocal_inGuild = true
-	else
-		dllocal_inGuild = false
-		self:RegisterEvent("PLAYER_GUILD_UPDATE")
-	end
-	
-	local _,_,_,v = GetBuildInfo(); 
-	dllocal_expac = Dailies.Round(v/10000,0)
+	self:RegisterEvent("QUEST_GREETING")				--  same, for quest givers that use the quest greeting window instead of gossip
+	-- Guild info is often not ready yet at login on 3.3.5, so always listen for it
+	self:RegisterEvent("GUILD_ROSTER_UPDATE")
+	self:RegisterEvent("PLAYER_GUILD_UPDATE")
+	dllocal_inGuild = IsInGuild() and true or false
+	if dllocal_inGuild then GuildRoster() end
+
+	local _,_,_,v = GetBuildInfo()
+	dllocal_expac = Dailies.Round((tonumber(v) or 30300)/10000,0)
 
 
 	dllocal_tzdiff = time() - time(date("!*t"))			--  pick up the timezone offset
@@ -387,50 +769,52 @@ function Dailies:OnEnable()
 	-- example tzdiff
 	-- 36000 in Sydney (+10h)
 	-- 34200 in Adelaide (+9.5h)
-	
-	-- C_ChatInfo.RegisterAddonMessagePrefix(dllocal_prefix)
-	-- C_ChatInfo.RegisterAddonMessagePrefix(dllocal_prefix_version)
+
 	Dailies:RegisterComm(dllocal_prefix)
 	Dailies:RegisterComm(dllocal_prefix_version)
+
+	dllocal_faction = UnitFactionGroup("player")
 
 	if Dailies_Data == nil then Dailies_Data = {} end
 
 	-- adding the Toons group to make the saved data clearer
-	if Dailies_Data.Toons == nil then 
-		Dailies_Data.Toons = {} 
+	if Dailies_Data.Toons == nil then
+		Dailies_Data.Toons = {}
 		-- moving any existing toon group to the new Toons group for backward compatibility
 		for kt, t in pairs(Dailies_Data) do --all toons
 
-			if string.find(kt, "-") then --key has a hyphen so it's a toon
+			if type(kt) == "string" and string.find(kt, "-") then --key has a hyphen so it's a toon
 				Dailies_Data.Toons[kt] = t 		-- add new
 				Dailies_Data[kt] = nil			-- remove old
 			end
 		end
 	end
-   
+
+	if Dailies_Data.Quests == nil then Dailies_Data.Quests = {} end
+	if Dailies_Settings == nil then Dailies_Settings = {} end
+	Dailies.SanitizeSavedData()
+
 	if Dailies_Data.Toons[dllocal_charKey] == nil then Dailies_Data.Toons[dllocal_charKey] = {} end
 	if Dailies_Data.Toons[dllocal_charKey].Quests == nil then Dailies_Data.Toons[dllocal_charKey].Quests = {} end
 	if Dailies_Data.Toons[dllocal_charKey].TotalGold == nil then Dailies_Data.Toons[dllocal_charKey].TotalGold = 0 end
 	if Dailies_Data.Toons[dllocal_charKey].TotalDailies == nil then Dailies_Data.Toons[dllocal_charKey].TotalDailies = 0 end
 	--if Dailies_Data.Toons[dllocal_charKey].RepFilter == nil then Dailies_Data.Toons[dllocal_charKey].RepFilter = nil end -- unneeded, nil is default
 
-	
+
 	if Dailies_Data.TotalGold == nil then Dailies_Data.TotalGold = 0 end
 	if Dailies_Data.TotalDailies == nil then Dailies_Data.TotalDailies = 0 end
-	if Dailies_Data.Quests == nil then Dailies_Data.Quests = {} end
 
-	
-	if Dailies_Settings == nil then Dailies_Settings = {} end
+
 	if Dailies_Settings.showReceivedDailies == nil then Dailies_Settings.showReceivedDailies = true end
 	if Dailies_Settings.showQuestInfoPanel == nil then Dailies_Settings.showQuestInfoPanel = true end
 	if Dailies_Settings.showOnlyForKnownProfessions == nil then Dailies_Settings.showOnlyForKnownProfessions = true end
-	
+
 	if Dailies_Settings.showQuestRewardTotal == nil then Dailies_Settings.showQuestRewardTotal = true end
 	if Dailies_Settings.autoAcceptQuests == nil then Dailies_Settings.autoAcceptQuests = false end
 	if Dailies_Settings.autoCompleteQuests == nil then Dailies_Settings.autoCompleteQuests = false end
 	if Dailies_Settings.showMinimapButton == nil then Dailies_Settings.showMinimapButton = true end
 	if Dailies_Settings.minimapButtonPosition == nil then Dailies_Settings.minimapButtonPosition = {} end
-	
+
 	if Dailies_Settings.runScanOnLogin == nil then Dailies_Settings.runScanOnLogin = true end
 	if Dailies_Settings.scanForAnyDailies == nil then Dailies_Settings.scanForAnyDailies = false end
 	if Dailies_Settings.serverDailyResetTime == nil then Dailies_Settings.serverDailyResetTime = 6 end
@@ -440,120 +824,67 @@ function Dailies:OnEnable()
 	if Dailies_Settings.showWotLKDailies == nil then Dailies_Settings.showWotLKDailies = true end
 	if Dailies_Settings.showWrathDungeonDailies == nil then Dailies_Settings.showWrathDungeonDailies = false end
 
-	
+
 	-- set defaults for existing dailies on new toons
-	for kq, q in pairs(Dailies_Data.Quests) do 
+	for kq, q in pairs(Dailies_Data.Quests) do
 
 		q.Text = q.Text:gsub("\n", "#N#") -- replace extra slashes
-		q.Text = q.Text:gsub("\\r", "") 
-		q.Text = q.Text:gsub("\\", "") 	 
-		q.Text = q.Text:gsub("#N##N#", "#N#") 
-		--q.Text = q.Text:gsub("#R#", "\r") 
-		q.Text = q.Text:gsub("#N#", "\n") 
+		q.Text = q.Text:gsub("\\r", "")
+		q.Text = q.Text:gsub("\\", "")
+		q.Text = q.Text:gsub("#N##N#", "#N#")
+		--q.Text = q.Text:gsub("#R#", "\r")
+		q.Text = q.Text:gsub("#N#", "\n")
 
-		if Dailies_Data.Toons[dllocal_charKey].Quests[kq] == nil then 
-			Dailies_Data.Toons[dllocal_charKey].Quests[kq] = {} 
-			Dailies_Data.Toons[dllocal_charKey].Quests[kq].Ignored = false 
-			Dailies_Data.Toons[dllocal_charKey].Quests[kq].Order = Dailies.count(Dailies_Data.Toons[dllocal_charKey].Quests)+1
-		end
+		Dailies.EnsureToonQuest(kq)
 
-
-		if dllocal_temp[kq] == nil then 
+		if dllocal_temp[kq] == nil then
 			--add up the seen realm for non temp quests
-			if q.Seen == nil then q.Seen = {} end
 			q.Seen[GetRealmName()] = 1
 		end
 
 	end
 
-	dllocal_faction, _ = UnitFactionGroup("player")
-
 	-- find out what professions this toon has, as some quests are prof specific
-	local profNames = dllocal_ProfessionNames[GetLocale()]
-	local profNames_rev = tInvert(profNames)
-	Dailies_Data.Toons[dllocal_charKey].Professions = {} -- force blank, to keep up to date
-	for i = 1, GetNumSkillLines() do
-		local name, _, _, skillRank = GetSkillLineInfo(i)
-		if profNames_rev[name] then
-			--print(name, skillRank)
-			Dailies_Data.Toons[dllocal_charKey].Professions[profNames_rev[name]] = skillRank
-		end
-	end
+	Dailies_Data.Toons[dllocal_charKey].Professions = ScanProfessions() -- rebuilt each login, to keep up to date
 
 
 	-- detect any daily quest that the player might already have in their log
-	for i=1, GetNumQuestLogEntries() do 
-		local questTitle, level, questTag, suggestedGroup, isHeader, isCollapsed,
-		isComplete, isDaily, questID = GetQuestLogTitle(i);
+	ForEachQuestInLog(function(index, questTitle, isComplete, isDaily, questID)
+		if (isDaily == 1 or isDaily == true) and Dailies_Data.Quests[questID] == nil then
+			-- quest log rewards are read from the selected entry
+			local previous = GetQuestLogSelection()
+			SelectQuestLogEntry(index)
+			local money = GetQuestLogRewardMoney() or 0
+			local honor = (GetQuestLogRewardHonor and GetQuestLogRewardHonor()) or 0
+			SelectQuestLogEntry(previous or 0)
 
-		if isDaily == 1 then 
-			--daily+
-
-			if Dailies_Data.Quests[questID] == nil then
-
-				Dailies_Data.Quests[questID] = {}
-
-				if Dailies_Settings.showReceivedDailies then print("|cffff00ff[Dailies]|r New daily quest detected: |cffffd100" .. questTitle .. "|r") end
-
-				--log this quest information
-				Dailies_Data.Quests[questID].Title = questTitle or ""
-				Dailies_Data.Quests[questID].Text = "Placeholder. This will be populated next time you take the quest."
-				Dailies_Data.Quests[questID].Frequency = "Daily"
-				Dailies_Data.Quests[questID].Money = GetQuestLogRewardMoney(questID) or 0
-				Dailies_Data.Quests[questID].Xp = 0 --GetQuestLogRewardXP(questID) or 0 --not used, GetQuestLogRewardXP is deprecated
-				Dailies_Data.Quests[questID].Honor = GetQuestLogRewardHonor(questID) or 0
-				Dailies_Data.Quests[questID].SubZone = ""			-- will be populated later
-				Dailies_Data.Quests[questID].Zone = ""				-- will be populated later
-				Dailies_Data.Quests[questID].Factions = {}
-				Dailies_Data.Quests[questID].Factions[dllocal_faction] = 1
-				Dailies_Data.Quests[questID].TodayUntil = nil
-				Dailies_Data.Quests[questID].NPC = ""				-- will be populated later
-
-				if Dailies_Data.Toons[dllocal_charKey].Quests[questID] == nil then 
-					Dailies_Data.Toons[dllocal_charKey].Quests[questID] = {} 
-					Dailies_Data.Toons[dllocal_charKey].Quests[questID].Ignored = false 
-					Dailies_Data.Toons[dllocal_charKey].Quests[questID].Order = Dailies.count(Dailies_Data.Toons[dllocal_charKey].Quests)+1
-					Dailies_Data.Toons[dllocal_charKey].Quests[questID].TimesCompleted = 0
-				end
-	
-				if Dailies_Data.Quests[questID].Seen == nil then Dailies_Data.Quests[questID].Seen = {} end
-				Dailies_Data.Quests[questID].Seen[GetRealmName()] = 1
-		
-			end
-	
+			Dailies.RegisterDaily(questID, {
+				Title = questTitle or "",
+				Text = "Placeholder. This will be populated next time you take the quest.",
+				Money = money,
+				Xp = 0,
+				Honor = honor,
+				SubZone = "",			-- will be populated later
+				Zone = "",				-- will be populated later
+				NPC = "",				-- will be populated later
+			})
 		end
+	end)
 
-	end
-
-	--- Guild info is not always ready at start. Waiting a couple seconds to retrieve it
-	-- C_Timer.After(2, function()
-		-- guildName, guildRankName, guildRankIndex = GetGuildInfo("player");
-		-- if guildName ~= nil then dllocal_inGuild = true end
-	-- end)
--- These C_Timer calls are currently disabled as they don't exist in 3.3.5
 	Dailies.ClassifyQuests()
-	
-	if Dailies_Settings.runScanOnLogin then 
-		-- Call for getting today's dailies from peers
-		-- C_Timer.After(9, function()
-	
-			-- if dllocal_inGuild then 
-				-- print("|cffff00ff[Dailies]|r Sending automatic request for "..(Dailies_Settings.scanForAnyDailies and "all" or "today's") .. " dailies.")
-				-- Dailies:SendCommMessage(dllocal_prefix, (Dailies_Settings.scanForAnyDailies and "GET_ALL_DAILIES" or "GET_TODAYS_DAILIES"), "GUILD", "") 
-			-- end
 
---			C_Timer.After(4, function()
---				Dailies:SendCommMessage(dllocal_prefix, (Dailies_Settings.scanForAnyDailies and "GET_ALL_DAILIES" or "GET_TODAYS_DAILIES"), "YELL", "")
---			end)
-		-- end)
-
-		
+	if Dailies_Settings.runScanOnLogin then
+		-- Ask guildies for today's dailies once guild info has had time to arrive
+		Timer.After(9, function()
+			if IsInGuild() then
+				print("|cffff00ff[Dailies]|r Sending automatic request for "..(Dailies_Settings.scanForAnyDailies and "all" or "today's") .. " dailies.")
+				Dailies:SendCommMessage(dllocal_prefix, (Dailies_Settings.scanForAnyDailies and "GET_ALL_DAILIES" or "GET_TODAYS_DAILIES"), "GUILD", "")
+			end
+		end)
 	end
 
 
-
-
-	Dailies_Broker = dllocal_ldb:NewDataObject("Dailies_Broker", {
+	Dailies_Broker = Dailies_Broker or dllocal_ldb:NewDataObject("Dailies_Broker", {
 		type = "data source",
 		label = "Dailies",
 		text = "Click me!",
@@ -563,6 +894,8 @@ function Dailies:OnEnable()
 				dllocal_frame = Dailies.getFrame()
 			elseif button=="RightButton" then
 				InterfaceOptionsFrame_Show()
+				-- called twice: the first call doesn't always scroll to the panel on 3.3.5
+				InterfaceOptionsFrame_OpenToCategory("Dailies")
 				InterfaceOptionsFrame_OpenToCategory("Dailies")
 			end
 		end,
@@ -571,7 +904,7 @@ function Dailies:OnEnable()
 
 			if 	dllocal_brokerlabel ~= nil and dllocal_brokervalue ~= nil then
 				tooltip:AddLine(" ")
-				if dllocal_brokerlabel == "All Done!" then 
+				if dllocal_brokerlabel == "All Done!" then
 					tooltip:AddLine("|cffc0c0c0Next Step:|r None!")
 				else
 					tooltip:AddLine("|cffc0c0c0Next Step:|r |cffffffff" .. dllocal_brokervalue .. " the |r"..dllocal_brokerlabel.."|cffffffff quest|r.")
@@ -584,7 +917,7 @@ function Dailies:OnEnable()
 		end,
 	})
 
-	if Dailies_Broker then Dailies_Broker.text = dllocal_brokervalue .. " " .. dllocal_brokerlabel end
+	if Dailies_Broker and dllocal_brokervalue and dllocal_brokerlabel then Dailies_Broker.text = dllocal_brokervalue .. " " .. dllocal_brokerlabel end
 
 	dllocal_minimapicon:Register("Dailies_Broker", Dailies_Broker, Dailies_Settings.minimapButtonPosition)
 	if Dailies_Settings.minimapButtonPosition.hide 
@@ -607,91 +940,91 @@ end
 
 function Dailies:QUEST_DETAIL(event)
 	PrintHandler("Quest shown", true)
-    StoreCompletedQuests()
+	dllocal_pendingDetail = nil
 
-	local id = GetQuestID()
-	if QuestIsDaily() then 
+	if not (QuestIsDaily and QuestIsDaily()) then return end
 
-		if Dailies_Data.Quests[id] == nil then
-			Dailies_Data.Quests[id] = {} 
-			if Dailies_Settings.showReceivedDailies then print("|cffff00ff[Dailies]|r New daily quest detected: |cffffd100" .. GetTitleText() .. "|r") end
-        end
-		
-		--log this quest information
-		Dailies_Data.Quests[id].Title = GetTitleText()
-		Dailies_Data.Quests[id].Text = GetObjectiveText()
-		Dailies_Data.Quests[id].Frequency = "Daily"
-		Dailies_Data.Quests[id].Money = GetRewardMoney()
-		Dailies_Data.Quests[id].Xp = GetRewardXP()
-		Dailies_Data.Quests[id].Honor = GetRewardHonor()
-		Dailies_Data.Quests[id].SubZone = GetSubZoneText()
-		Dailies_Data.Quests[id].Zone = GetZoneText()
-		if Dailies_Data.Quests[id].Factions == nil then Dailies_Data.Quests[id].Factions = {} end
-		Dailies_Data.Quests[id].Factions[dllocal_faction] = 1
-		Dailies_Data.Quests[id].TodayUntil = Dailies.DailyResetTime()
-		Dailies_Data.Quests[id].NPC = UnitName("target")
-				
-		if Dailies_Data.Toons[dllocal_charKey].Quests[id] == nil then 
-			Dailies_Data.Toons[dllocal_charKey].Quests[id] = {} 
-			Dailies_Data.Toons[dllocal_charKey].Quests[id].Ignored = false 
-			Dailies_Data.Toons[dllocal_charKey].Quests[id].Order = Dailies.count(Dailies_Data.Toons[dllocal_charKey].Quests)+1
-			Dailies_Data.Toons[dllocal_charKey].Quests[id].TimesCompleted = 0
-		end
+	local info = {
+		Title = GetTitleText() or "",
+		Text = GetObjectiveText() or "",
+		Frequency = "Daily",
+		Money = GetRewardMoney() or 0,
+		Xp = (GetRewardXP and GetRewardXP()) or 0,
+		Honor = (GetRewardHonor and GetRewardHonor()) or 0,
+		SubZone = GetSubZoneText() or "",
+		Zone = GetZoneText() or "",
+		TodayUntil = Dailies.DailyResetTime(),
+		NPC = UnitName("npc") or UnitName("target") or "",
+	}
+	-- kept until the quest is accepted, where the quest log gives us the real ID
+	dllocal_pendingDetail = info
 
-		if Dailies_Data.Quests[id].Seen == nil then Dailies_Data.Quests[id].Seen = {} end
-		Dailies_Data.Quests[id].Seen[GetRealmName()] = 1
-
-		Dailies.MakeGroupDaily(id)
-		if dllocal_frame and dllocal_frame:IsVisible() then Dailies.ShowTabContent() end
-
-		-- spam the info
-		local ser = id.."|"..Dailies.serialize(Dailies_Data.Quests[id]):gsub(" = ", "="):gsub("   ", ""):gsub(" }", "}")
---		Dailies:SendCommMessage(dllocal_prefix, ser, "YELL", "")
-		if dllocal_inGuild then 
-			Dailies:SendCommMessage(dllocal_prefix, ser, "GUILD", "")
-		end
-
-		-- auto-accept if needed
-		if dllocal_questTabs.ToDo[id] and Dailies_Settings.autoAcceptQuests then 
-			AcceptQuest()
-		end
-
-		Dailies.ClassifyQuests()
+	local id = Dailies.CurrentQuestID()
+	if not id then
+		PrintHandler("No quest ID yet for " .. info.Title .. ", it will be recorded when accepted", true)
+		return
 	end
 
+	--log this quest information
+	Dailies.RegisterDaily(id, info)
+	Dailies.ClassifyQuests()
+	if dllocal_frame and dllocal_frame:IsVisible() then Dailies.ShowTabContent() end
+
+	-- spam the info
+	local ser = id.."|"..Dailies.serialize(Dailies_Data.Quests[id]):gsub(" = ", "="):gsub("   ", ""):gsub(" }", "}")
+	if IsInGuild() then
+		Dailies:SendCommMessage(dllocal_prefix, ser, "GUILD", "")
+	end
+
+	-- auto-accept if needed
+	if dllocal_questTabs.ToDo[id] and Dailies_Settings.autoAcceptQuests then
+		AcceptQuest()
+	end
 end
 
 -------------------------------------------------------------------------
 
-function Dailies:QUEST_ACCEPTED(event, logid)
-	-- print("accepted "..logid)
-    
-    StoreCompletedQuests()
-    
-	local title = GetQuestLogTitle(logid)
-    local id = GetQuestIDFromName(title)
-    
-	if Dailies_Data.Quests[id] then 
-		if Dailies_Data.Toons[dllocal_charKey].Quests[id] == nil then Dailies_Data.Toons[dllocal_charKey].Quests[id] = {} end
-		Dailies_Data.Toons[dllocal_charKey].Quests[id].Accepted = time()
-		Dailies_Data.Toons[dllocal_charKey].Quests[id].Completed = nil
-		if Dailies_Data.Toons[dllocal_charKey].Quests[id].TimesCompleted == nil then Dailies_Data.Toons[dllocal_charKey].Quests[id].TimesCompleted = 0 end
-		if Dailies_Data.Toons[dllocal_charKey].Quests[id].Duration == nil then 
-			Dailies_Data.Toons[dllocal_charKey].Quests[id].Duration = {} 
-			Dailies_Data.Toons[dllocal_charKey].Quests[id].Duration.Current = nil 
-			Dailies_Data.Toons[dllocal_charKey].Quests[id].Duration.Last = nil 
-			Dailies_Data.Toons[dllocal_charKey].Quests[id].Duration.Fastest = nil
-			Dailies_Data.Toons[dllocal_charKey].Quests[id].Duration.Slowest = nil
+function Dailies:QUEST_ACCEPTED(event, logIndex)
+	dllocal_questLog = nil
+
+	-- 3.3.5 passes the quest log index; the 9th value of GetQuestLogTitle is the quest ID
+	local title, _, _, _, isHeader, _, _, isDaily, id = GetQuestLogTitle(logIndex or 0)
+	local pending = dllocal_pendingDetail
+	dllocal_pendingDetail = nil
+
+	if isHeader or not id or id == 0 then
+		-- the index didn't point at the quest: find it by the title shown at the quest giver
+		title = pending and pending.Title
+		id = Dailies.FindQuestInLog(title)
+		isDaily = id and QuestLog()[id].daily and 1 or nil
+	end
+	if not id then return end
+
+	-- a daily we couldn't identify at the quest giver (unknown title, other client language,
+	-- shared quest...): record it now that we know its ID
+	if Dailies_Data.Quests[id] == nil then
+		if pending and pending.Title == title then
+			Dailies.RegisterDaily(id, pending)
+		elseif isDaily == 1 or isDaily == true then
+			Dailies.RegisterDaily(id, {
+				Title = title or "",
+				Text = "Placeholder. This will be populated next time you take the quest.",
+				Money = 0, Xp = 0, Honor = 0, SubZone = "", Zone = "", NPC = "",
+				TodayUntil = Dailies.DailyResetTime(),
+			})
 		end
-		Dailies_Data.Toons[dllocal_charKey].Quests[id].Duration.Last = Dailies_Data.Toons[dllocal_charKey].Quests[id].Duration.Current 
-		Dailies_Data.Toons[dllocal_charKey].Quests[id].Duration.Current = nil
+	end
+
+	if Dailies_Data.Quests[id] then
+		local tq = Dailies.EnsureToonQuest(id)
+		tq.Accepted = time()
+		tq.Completed = nil
+		if type(tq.Duration) ~= "table" then tq.Duration = {} end
+		tq.Duration.Last = tq.Duration.Current
+		tq.Duration.Current = nil
 
 		-- need async otherwise the quest is not detected as completed
-		C_Timer.After(1, function()	
-			Dailies.ClassifyQuests() 
-			if dllocal_frame and dllocal_frame:IsVisible() then Dailies.ShowTabContent() end
-		end) 
-
+		Dailies.ScheduleRefresh(1)
 	end
 end
 
@@ -699,120 +1032,64 @@ end
 
 function Dailies:QUEST_FINISHED(event)
 	-- Just refresh the UI when quest dialog closes
-	-- Actual completion tracking is done in QUEST_COMPLETE
-	C_Timer.After(1, function()	
-		Dailies.ClassifyQuests() 
-		if dllocal_frame and dllocal_frame:IsVisible() then Dailies.ShowTabContent() end
-	end) 
-
+	-- Hand-ins are tracked through the GetQuestReward hook (see RecordCompletion)
+	dllocal_questLog = nil
+	Dailies.ScheduleRefresh(1)
 end
 
 -------------------------------------------------------------------------
 
 function Dailies:QUEST_COMPLETE(event)
-                          
-	local id = GetQuestID()
-	--print("[Dailies Debug] QUEST_COMPLETE fired for quest: " .. tostring(id))
+	-- Reward screen. Remember which quest it is: it is counted as completed
+	-- only once it has actually been handed in (GetQuestReward hook).
+	dllocal_questLog = nil
+	local id = Dailies.CurrentQuestID()
+	dllocal_turnIn = id
 
-	-- Track completion directly here for dailies we're tracking
-	if id and Dailies_Data.Toons[dllocal_charKey].Quests[id] ~= nil then 
-		--print("|cff00ff00[Dailies] Quest completed: " .. id .. "|r")
-		Dailies_Data.Toons[dllocal_charKey].Quests[id].Completed = time()
-		Dailies_Data.Toons[dllocal_charKey].Quests[id].TimesCompleted = (Dailies_Data.Toons[dllocal_charKey].Quests[id].TimesCompleted or 0) + 1 
-
-		if Dailies_Data.Toons[dllocal_charKey].Quests[id].Duration == nil then 
-			Dailies_Data.Toons[dllocal_charKey].Quests[id].Duration = {} 
-			Dailies_Data.Toons[dllocal_charKey].Quests[id].Duration.Current = nil 
-			Dailies_Data.Toons[dllocal_charKey].Quests[id].Duration.Last = nil 
-			Dailies_Data.Toons[dllocal_charKey].Quests[id].Duration.Fastest = nil
-			Dailies_Data.Toons[dllocal_charKey].Quests[id].Duration.Slowest = nil
+	-- auto-complete if needed (only when there's no reward to pick and nothing to pay)
+	if id and dllocal_questTabs.ToDo[id] and Dailies_Settings.autoCompleteQuests then
+		local choices = GetNumQuestChoices() or 0
+		local cost = (GetQuestMoneyToGet and GetQuestMoneyToGet()) or 0
+		if choices <= 1 and cost <= 0 then
+			GetQuestReward(choices)
 		end
-
-		if Dailies_Data.Toons[dllocal_charKey].Quests[id].Completed and Dailies_Data.Toons[dllocal_charKey].Quests[id].Accepted then 
-			Dailies_Data.Toons[dllocal_charKey].Quests[id].Duration.Current = Dailies_Data.Toons[dllocal_charKey].Quests[id].Completed - Dailies_Data.Toons[dllocal_charKey].Quests[id].Accepted
-		end
-		if Dailies_Data.Toons[dllocal_charKey].Quests[id].Duration.Fastest == nil or Dailies_Data.Toons[dllocal_charKey].Quests[id].Duration.Current < Dailies_Data.Toons[dllocal_charKey].Quests[id].Duration.Fastest then 
-			Dailies_Data.Toons[dllocal_charKey].Quests[id].Duration.Fastest = Dailies_Data.Toons[dllocal_charKey].Quests[id].Duration.Current
-		end
-		if Dailies_Data.Toons[dllocal_charKey].Quests[id].Duration.Slowest == nil or Dailies_Data.Toons[dllocal_charKey].Quests[id].Duration.Current > Dailies_Data.Toons[dllocal_charKey].Quests[id].Duration.Slowest then 
-			Dailies_Data.Toons[dllocal_charKey].Quests[id].Duration.Slowest = Dailies_Data.Toons[dllocal_charKey].Quests[id].Duration.Current
-		end
-
-		if Dailies_Data.Toons[dllocal_charKey].TotalGold == nil then Dailies_Data.Toons[dllocal_charKey].TotalGold = 0 end
-		Dailies_Data.Toons[dllocal_charKey].TotalGold = Dailies_Data.Toons[dllocal_charKey].TotalGold + Dailies_Data.Quests[id].Money 
-		
-		if Dailies_Data.Toons[dllocal_charKey].TotalDailies == nil then Dailies_Data.Toons[dllocal_charKey].TotalDailies = 0 end
-		Dailies_Data.Toons[dllocal_charKey].TotalDailies = Dailies_Data.Toons[dllocal_charKey].TotalDailies + 1
-
-		if Dailies_Data.TotalGold == nil then Dailies_Data.TotalGold = 0 end
-		Dailies_Data.TotalGold = Dailies_Data.TotalGold + Dailies_Data.Quests[id].Money 
-		
-		if Dailies_Data.TotalDailies == nil then Dailies_Data.TotalDailies = 0 end
-		Dailies_Data.TotalDailies = Dailies_Data.TotalDailies + 1
-    else
-		--print("[Dailies Debug] Quest ID: " .. tostring(id) .. " - not in our tracking data")
 	end
-
-	-- auto-complete if needed
-	if dllocal_questTabs.ToDo[id] and Dailies_Settings.autoCompleteQuests then 
-		QuestRewardCompleteButton_OnClick()
-	end
-
-
-	-- need async otherwise the quest is not detected as completed
-	C_Timer.After(1, function()	
-		Dailies.ClassifyQuests() 
-		if dllocal_frame and dllocal_frame:IsVisible() then Dailies.ShowTabContent() end
-	end)
 end
 
 -------------------------------------------------------------------------
 
 function Dailies:QUEST_PROGRESS(event)
-	--print("QUEST_PROGRESS")
-	local id = GetQuestID()
+	local id = Dailies.CurrentQuestID()
 
 	-- auto-complete if needed
-	if dllocal_questTabs.ToDo[id] and Dailies_Settings.autoCompleteQuests then 
+	if id and dllocal_questTabs.ToDo[id] and Dailies_Settings.autoCompleteQuests and IsQuestCompletable() then
 		CompleteQuest()
 	end
-	
 end
 
 -------------------------------------------------------------------------
 
 function Dailies:GOSSIP_SHOW(event)
-	--print("GOSSIP_SHOW")
+	if not (Dailies_Settings.autoAcceptQuests or Dailies_Settings.autoCompleteQuests) then return end
+	Dailies.ClassifyQuests()		-- up to date to-do list and quest log
 
 	-- auto accepts
-	if Dailies_Settings.autoAcceptQuests then 
-		local availableQuests = GetAvailableQuests();
-	    for index, quest in ipairs(availableQuests) do
-			if quest.frequency == 1 then -- Daily quest
-				-- Check if this daily is in our to-do list
-				for ktd, td in pairs(dllocal_questTabs.ToDo) do 
-					if Dailies_Data.Quests[ktd] and Dailies_Data.Quests[ktd].Title == quest.title then
-						SelectGossipAvailableQuest(index)
-						return
-					end
-				end
+	if Dailies_Settings.autoAcceptQuests then
+		for index, quest in ipairs(GossipAvailableQuests()) do
+			if quest.isDaily ~= false and Dailies.ToDoQuestByTitle(quest.title) then
+				SelectGossipAvailableQuest(index)
+				return
 			end
 		end
 	end
 
 	-- auto completes
-	if Dailies_Settings.autoCompleteQuests then 
-        local activeQuests = GetActiveQuests()
-
-		for index, quest in ipairs(activeQuests) do
-			-- Check if this quest is in our to-do list and ready to complete
-			for ktd, td in pairs(dllocal_questTabs.ToDo) do 
-				if Dailies_Data.Quests[ktd] and Dailies_Data.Quests[ktd].Title == quest.title then
-					if Dailies.ReadyToComplete(ktd) then 
-						SelectGossipActiveQuest(index)
-						return
-					end
-				end	
+	if Dailies_Settings.autoCompleteQuests then
+		for index, quest in ipairs(GossipActiveQuests()) do
+			local id = Dailies.ToDoQuestByTitle(quest.title)
+			if id and Dailies.ReadyToComplete(id) then
+				SelectGossipActiveQuest(index)
+				return
 			end
 		end
 	end
@@ -820,10 +1097,45 @@ end
 
 -------------------------------------------------------------------------
 
+-- Some quest givers use the quest greeting window instead of gossip
+function Dailies:QUEST_GREETING(event)
+	if not (Dailies_Settings.autoAcceptQuests or Dailies_Settings.autoCompleteQuests) then return end
+	Dailies.ClassifyQuests()
+
+	if Dailies_Settings.autoAcceptQuests then
+		for i = 1, (GetNumAvailableQuests() or 0) do
+			if Dailies.ToDoQuestByTitle(GetAvailableTitle(i)) then
+				SelectAvailableQuest(i)
+				return
+			end
+		end
+	end
+
+	if Dailies_Settings.autoCompleteQuests then
+		for i = 1, (GetNumActiveQuests() or 0) do
+			local id = Dailies.ToDoQuestByTitle((GetActiveTitle(i)))
+			if id and Dailies.ReadyToComplete(id) then
+				SelectActiveQuest(i)
+				return
+			end
+		end
+	end
+end
+
+-------------------------------------------------------------------------
+
+function Dailies:QUEST_LOG_UPDATE(event)
+	dllocal_questLog = nil		-- re-read next time it's needed
+end
+
+-------------------------------------------------------------------------
+
 function Dailies:UNIT_QUEST_LOG_CHANGED(event, unit)
+	if unit and unit ~= "player" then return end	-- also fires for party members
+	dllocal_questLog = nil
 
 	if dllocal_frame and dllocal_frame:IsVisible() then
-		C_Timer.After(0.5, function()	Dailies.ShowTabContent() end) -- slight delay for the quest to be abandonned *before* the log refresh
+		Dailies.ScheduleRefresh(0.5) -- slight delay for the quest to be abandonned *before* the log refresh
 	end
 
 end
@@ -832,13 +1144,11 @@ end
 
 function Dailies:GUILD_ROSTER_UPDATE(event, canRequestUpdate)
 	self._guildOnlineCache = self._guildOnlineCache or {}
-	if canRequestUpdate then
-		GuildRoster()
-	end
+	dllocal_inGuild = IsInGuild() and true or false
 	for i=1, GetNumGuildMembers(true) do
-		local fullName, rank, rankIndex, level, class, zone, note, officernote, online = GetGuildRosterInfo(i)
-		if fullName and fullName ~= _G.UNKNOWNOBJECT then
-			self._guildOnlineCache[fullName] = online and true or nil
+		local name, rank, rankIndex, level, class, zone, note, officernote, online = GetGuildRosterInfo(i)
+		if name and name ~= _G.UNKNOWNOBJECT then
+			self._guildOnlineCache[ShortName(name)] = online and true or false
 		end
 	end
 end
@@ -846,13 +1156,10 @@ end
 -------------------------------------------------------------------------
 
 function Dailies:PLAYER_GUILD_UPDATE(event, unit)
-	if unit and UnitIsUnit(unit,"player") then
-		if IsInGuild() then
-			dllocal_inGuild = true
-			self:RegisterEvent("GUILD_ROSTER_UPDATE")
-		else
-			dllocal_inGuild = false
-		end
+	-- 3.3.5 may fire this without a unit
+	if unit == nil or UnitIsUnit(unit,"player") then
+		dllocal_inGuild = IsInGuild() and true or false
+		if dllocal_inGuild then GuildRoster() end
 	end
 end
 
@@ -861,21 +1168,45 @@ end
 -- /dump date("!*t", 1644210000)
 -- /dump date("!*t")
 
+-- Time (epoch seconds) of the next daily quest reset
 function Dailies.DailyResetTime()
-    reset = Dailies_Settings.serverDailyResetTime
-	
+	-- The server reports the time left until the reset; that is right whatever
+	-- the realm's timezone or reset hour is.
+	-- (Right after login it can briefly return garbage, hence the range check.)
+	if GetQuestResetTime then
+		local secs = GetQuestResetTime()
+		if secs and secs > 0 and secs <= 86400 then
+			local nextReset = time() + secs
+			if Dailies_Settings then Dailies_Settings.knownResetTime = nextReset end
+			return nextReset
+		end
+	end
+
+	-- Fallback 1: roll the last reset time the server gave us forward to the next one
+	local known = Dailies_Settings and tonumber(Dailies_Settings.knownResetTime)
+	if known then
+		local now = time()
+		if known <= now then known = known + (math.floor((now - known) / 86400) + 1) * 86400 end
+		return known
+	end
+
+	-- Fallback 2: the reset hour (UTC) from the settings
+	local reset = Dailies_Settings.serverDailyResetTime or 6
+
 	local time_utc = date("!*t")
-	
+
 	-- next day if we're just past the reset time
-	if time_utc.hour*60+time_utc.min > reset*60 then time_utc.day = time_utc.day + 1 end
+	if time_utc.hour*60+time_utc.min >= reset*60 then time_utc.day = time_utc.day + 1 end
 	time_utc.hour = reset
 	time_utc.min = 0
 	time_utc.sec = 0
-	
-	--print(time_utc.day .. "/" .. time_utc.month .. " " ..time_utc.hour .. ":" .. time_utc.min)
-	--print(time(time_utc))
 
 	return time(time_utc) + dllocal_tzdiff
+end
+
+-- Time (epoch seconds) of the most recent daily quest reset
+function Dailies.LastResetTime()
+	return Dailies.DailyResetTime() - 86400
 end
 
 -------------------------------------------------------------------------
@@ -884,8 +1215,11 @@ end
 
 function Dailies.getFrame()
 
+	-- professions may have been learned/unlearned since login
+	Dailies_Data.Toons[dllocal_charKey].Professions = ScanProfessions()
+
 	-- if view already exists, just return it
-	 if dllocal_frame then 
+	 if dllocal_frame then
 		Dailies.ShowTabContent()
 		dllocal_frame:Show()
 		dllocal_filter_frame.frame:Show()
@@ -952,7 +1286,7 @@ function Dailies.getFrame()
 	scanbutton:SetScript("OnEnter", function() dllocal_frame:SetStatusText("Scan guildies for dailies.") end)
 	scanbutton:SetScript("OnLeave", function() dllocal_frame:SetStatusText(dllocal_statusText) end)
 	scanbutton:SetScript("OnClick", function()
-		if dllocal_inGuild then 
+		if IsInGuild() then
 			Dailies:SendCommMessage(dllocal_prefix, (Dailies_Settings.scanForAnyDailies and "GET_ALL_DAILIES" or "GET_TODAYS_DAILIES"), "GUILD", "") 
 		end
 --		Dailies:SendCommMessage(dllocal_prefix, (Dailies_Settings.scanForAnyDailies and "GET_ALL_DAILIES" or "GET_TODAYS_DAILIES"), "YELL", "")
@@ -966,19 +1300,19 @@ function Dailies.getFrame()
 	dllocal_filter_frame:SetWidth(200)
 	dllocal_filter_frame.frame:SetFrameStrata("DIALOG")
 	dllocal_filter_frame:SetPoint("TOPRIGHT", scanbutton,"TOPLEFT", -5, 2)
+	-- this AceGUI version only adds items once a list exists
+	dllocal_filter_frame:SetList({})
 	dllocal_filter_frame:AddItem(0, "|TInterface\\AddOns\\Dailies\\Images\\ignored:16|t No reputation filter")
-	if dllocal_repicons then 
-		for kr, r in Dailies.spairs(dllocal_repicons, function(t,a,b) 	
-			local namea = GetFactionInfoByID(a);
-			local nameb = GetFactionInfoByID(b);
-			return namea < nameb end) do --sorted reps
-			local name, _, _, _, _, earnedValue = GetFactionInfoByID(kr)
-			dllocal_filter_frame:AddItem(kr, "|T" .. r .. ":16|t " .. name)
+	if dllocal_repicons then
+		local function FactionName(id) return GetFactionInfoByID(id) or ("Faction " .. id) end
+		for kr, r in Dailies.spairs(dllocal_repicons, function(t,a,b)
+			return FactionName(a) < FactionName(b) end) do --sorted reps
+			dllocal_filter_frame:AddItem(kr, "|T" .. r .. ":16|t " .. FactionName(kr))
 		end
 	end
-	dllocal_filter_frame:SetCallback("OnValueChanged", function(choice) 
-		if choice:GetValue()  == 0 then Dailies_Data.Toons[dllocal_charKey].RepFilter = nil 
-		else Dailies_Data.Toons[dllocal_charKey].RepFilter = choice:GetValue() 
+	dllocal_filter_frame:SetCallback("OnValueChanged", function(widget, event, value)
+		if value == nil or value == 0 then Dailies_Data.Toons[dllocal_charKey].RepFilter = nil
+		else Dailies_Data.Toons[dllocal_charKey].RepFilter = value
 		end
 		Dailies.ShowTabContent()
 	end )
@@ -1230,11 +1564,21 @@ function Dailies.ShowTabContent()
 				hh = hh  + 45		--	45 is the size of the info panel
 			end
 
+			local lastHeight = nil
 			scroll.frame:SetScript("OnUpdate", function()
 				-- auto resize scroll zone when frame is resized
-				if Dailies_Settings.showQuestInfoPanel or showTotal then 
-					scroll:SetHeight(dllocal_frame.frame:GetHeight() - 120 - hh)  --120 is the offset for the frame
+				if Dailies_Settings.showQuestInfoPanel or showTotal then
+					local height = dllocal_frame.frame:GetHeight() - 120 - hh  --120 is the offset for the frame
+					if height ~= lastHeight then
+						lastHeight = height
+						scroll:SetHeight(height)
+					end
 				end
+			end)
+			-- AceGUI recycles widgets: take the script off again, otherwise it keeps
+			-- resizing whatever addon gets this scroll frame next
+			scroll:SetCallback("OnRelease", function(widget)
+				widget.frame:SetScript("OnUpdate", nil)
 			end)
 
 			if hh ~= 0 then 
@@ -1265,8 +1609,9 @@ function Dailies.ShowTabContent()
 			local totalReps = {}
 			local previousHeader = ""
 			local fullday = 24 * 60 * 60
+			local lastReset = Dailies.LastResetTime()
 
-			for kq, ql in Dailies.spairs(list, 
+			for kq, ql in Dailies.spairs(list,
 				function(t,a,b) 	
 					if dllocal_tabkey == "all" then 
 						return 	(dllocal_group[a] and dllocal_group[a].group or "ZZZ") .. "_" ..
@@ -1297,7 +1642,7 @@ function Dailies.ShowTabContent()
 
 						-- only mark as completed those that actually got completed in the group.
 						-- by default the API marks all quests of a group as completed together, so we need to check our data to know which one.
-						local completed = IsQuestFlaggedCompleted(kq)
+						local completed = Dailies.IsCompletedToday(kq)
 						--if completed and q.TodayUntil == nil then completed = false end  
 						
 		--				if completed and Dailies_Data.Toons[dllocal_charKey].Quests[kq].Completed == nil then completed = false end  
@@ -1330,7 +1675,7 @@ function Dailies.ShowTabContent()
 						--AD if dllocal_group[kq] then if dllocal_group[kq].today == nil then todaysDaily = false end	end
 						if q.TodayUntil == nil then 
 							todaysDaily = false
-						elseif (time(date("!*t")) + dllocal_tzdiff) > q.TodayUntil then
+						elseif time() > q.TodayUntil then
 							q.TodayUntil = nil
 							todaysDaily = false 
 						end
@@ -1386,13 +1731,11 @@ function Dailies.ShowTabContent()
 						local otherCompleted = ""
 
 						for kt, t in pairs(Dailies_Data.Toons) do --all toons
-							if t.Quests[kq] and t.Quests[kq].Completed ~= nil then 
-								if q.TodayUntil ~= nil then 
-									if t.Quests[kq].Completed > q.TodayUntil - fullday then 
-										otherCompleted = otherCompleted .. "\n" ..  " |TInterface\\AddOns\\Dailies\\Images\\completed:16|t " .. kt
-									end
+							if t.Quests[kq] and t.Quests[kq].Completed ~= nil then
+								if t.Quests[kq].Completed >= lastReset then
+									otherCompleted = otherCompleted .. "\n" ..  " |TInterface\\AddOns\\Dailies\\Images\\completed:16|t " .. kt
 								end
-							end 
+							end
 						end
 
 						local quest = AceGUI:Create("SimpleGroup")
@@ -1411,11 +1754,10 @@ function Dailies.ShowTabContent()
 								showprof = false
 							end
 
-							if dllocal_prof[kq] and showprof then 
-								if dllocal_ProfessionNames[GetLocale()] then 
-									if dllocal_ProfessionNames[GetLocale()][dllocal_prof[kq]] then 
-										tit = tit .. "|cff808080 - " .. dllocal_ProfessionNames[GetLocale()][dllocal_prof[kq]] .. "|r"
-									end
+							if dllocal_prof[kq] and showprof then
+								local profName = GetProfessionNames()[dllocal_prof[kq]]
+								if profName then
+									tit = tit .. "|cff808080 - " .. profName .. "|r"
 								end
 							end
 
@@ -1650,7 +1992,7 @@ function Dailies.ShowTabContent()
 							if dllocal_group[kq] then -- part of a group
 								for kq2, q2 in pairs(dllocal_group) do 
 									if dllocal_group[kq2].group == dllocal_group[kq].group and kq2 ~= kq then -- others from same group
-										if Dailies_Data.Quests[kq2] and Dailies_Data.Quests[kq2].TodayUntil and Dailies_Data.Quests[kq2].TodayUntil > (time(date("!*t")) + dllocal_tzdiff) then actualDaily = kq2 end
+										if Dailies_Data.Quests[kq2] and Dailies_Data.Quests[kq2].TodayUntil and Dailies_Data.Quests[kq2].TodayUntil > time() then actualDaily = kq2 end
 										--if dllocal_group[kq2].today then actualDaily = kq2 end
 									end
 								end
@@ -1709,7 +2051,7 @@ function Dailies.ShowTabContent()
 					--if m.expac == nil or m.expac <= dllocal_expac then 
 					if m.expac == nil or (Dailies_Settings.showTBCDailies and m.expac <= 2) or (Dailies_Settings.showWotLKDailies and m.expac == 3) then 
 						if (m.group ~= "Wrath Dungeon" and m.group ~= "Wrath Heroic") or (Dailies_Settings.showWrathDungeonDailies) then
-						    if dllocal_seasonal[kq] == nil or (Dailies_Settings.showSeasonalDailies and dllocal_seasonal[kq] ~= nil) then 
+						    if dllocal_seasonal[km] == nil or (Dailies_Settings.showSeasonalDailies and dllocal_seasonal[km] ~= nil) then 
 
                                 if m.faction == nil or m.faction == dllocal_faction then 
 
@@ -1846,14 +2188,14 @@ function Dailies.ShowTabContent()
 
 					local goldString = ""
 					if totalGold > 0 then goldString = GetMoneyString(totalGold, true) end
-					totalvalue = AceGUI:Create("Label")
+					local totalvalue = AceGUI:Create("Label")
 					totalvalue:SetText(goldString)
 					totalvalue:SetWidth(80)
 					-- totalvalue:SetJustifyH("RIGHT")
 					totalvalue:SetFont(GameFontNormal:GetFont(), 12)
 					total:AddChild(totalvalue)
 
-					totalspacer = AceGUI:Create("Label")
+					local totalspacer = AceGUI:Create("Label")
 					totalspacer:SetText("")
 					totalspacer:SetWidth(3*20)
 					totalspacer:SetFont(GameFontNormal:GetFont(), 12)
@@ -1957,7 +2299,13 @@ function Dailies.ClassifyQuests()
 	local listedExclu = {}  	-- used to not repeat completed quests from the same group
 	local first = true			-- used to show the first quest in broker
 
-	
+	if not (Dailies_Data and Dailies_Data.Quests and Dailies_Data.Toons and Dailies_Data.Toons[dllocal_charKey]) then return end
+
+	Dailies.RefreshQuestLog()
+
+	-- every quest needs an entry (with an Order) for this toon before sorting
+	for kq in pairs(Dailies_Data.Quests) do Dailies.EnsureToonQuest(kq) end
+
 	for kq, q in Dailies.spairs(Dailies_Data.Quests, function(t,a,b) 	return Dailies_Data.Toons[dllocal_charKey].Quests[a].Order < Dailies_Data.Toons[dllocal_charKey].Quests[b].Order end) do --all dailies
 
 		-- super dirty way to handle quest expac
@@ -1977,7 +2325,7 @@ function Dailies.ClassifyQuests()
 
 							local skip = false
 
-							local completed = IsQuestFlaggedCompleted(kq)
+							local completed = Dailies.IsCompletedToday(kq)
 						--	if completed and Dailies_Data.Quests[kq].TodayUntil == nil then completed = false end  
 
 
@@ -1994,7 +2342,7 @@ function Dailies.ClassifyQuests()
 								-- if a group, check if it's todays
 								if q.TodayUntil == nil then 
 									todaysDaily = false
-								elseif (time(date("!*t")) + dllocal_tzdiff) > q.TodayUntil then
+								elseif time() > q.TodayUntil then
 									q.TodayUntil = nil
 									todaysDaily = false 
 								end
@@ -2047,12 +2395,10 @@ function Dailies.ClassifyQuests()
 							
 							-- check quests against filter
 							if Dailies_Data.Toons[dllocal_charKey].RepFilter ~= nil then 
-								if dllocal_reps[kq] then 
-									for kr, r in Dailies.spairs(dllocal_reps[kq], function(t,a,b) 	return a < b end) do --sorted reps
-										--if kq == 10110 then print(kr) end
-										if kr ~= Dailies_Data.Toons[dllocal_charKey].RepFilter then skip = true end
-									end
-								else 
+								if type(dllocal_reps[kq]) == "table" then
+									-- keep the quest if any of its reputations matches the filter
+									if dllocal_reps[kq][Dailies_Data.Toons[dllocal_charKey].RepFilter] == nil then skip = true end
+								else
 									skip = true -- no rep attached, skip if filter is active
 								end
 							end
@@ -2125,25 +2471,16 @@ end
 -------------------------------------------------------------------------
 
 function Dailies.AlreadyHaveQuest(qid)
-	for i=1, GetNumQuestLogEntries() do 
-		local questTitle, level, questTag, suggestedGroup, isHeader, isCollapsed,
-		isComplete, isDaily, questID = GetQuestLogTitle(i);
-
-		if qid == questID then return true end
-	end
-	return false
+	-- uses the cached quest log, which also sees quests under collapsed headers
+	return QuestLog()[qid] ~= nil
 end
 
 -------------------------------------------------------------------------
 
 function Dailies.ReadyToComplete(qid)
-	for i=1, GetNumQuestLogEntries() do 
-		local questTitle, level, questTag, suggestedGroup, isHeader, isCollapsed,
-		isComplete, isDaily, questID = GetQuestLogTitle(i);
-        
-		if qid == questID then return isComplete end
-	end
-	return false
+	-- isComplete is 1 when done, -1 when failed: only the first counts
+	local entry = QuestLog()[qid]
+	return entry ~= nil and entry.complete
 end
 
 -------------------------------------------------------------------------
@@ -2163,7 +2500,7 @@ function Dailies.sendProgress(id, bytesSent, bytesTotal)
 			Dailies._recipientQueue[recipient] = nil
 		end
 	end
-	C_Timer.After(1, function()
+	Timer.After(1, function()
 		if not Dailies._recipientQueue or Dailies.count(Dailies._recipientQueue) == 0 then
 			Dailies:RemoveFilter()
 		end
@@ -2173,116 +2510,85 @@ end
 -------------------------------------------------------------------------
 function Dailies:OnCommReceived(prefix, message, distribution, sender)
 
+	if not (Dailies_Data and Dailies_Data.Quests and Dailies_Settings) then return end	-- not enabled yet
+
 	if prefix == dllocal_prefix and sender ~= UnitName("player") then
 
 		--Someone requested the list of today's dailies
 		if message == "GET_TODAYS_DAILIES" or message == "GET_ALL_DAILIES" then
 			Dailies._recipientQueue = Dailies._recipientQueue or {}
 			Dailies._recipientQueue[sender] = nil
+			if not Dailies.CheckExists(sender) then return end
+
 			local count, totalLen = 0, 0
 			for kq, q in pairs(Dailies_Data.Quests) do 
-				if q.Factions[dllocal_faction] == 1 then
-					if (message == "GET_ALL_DAILIES") or (message == "GET_TODAYS_DAILIES" and (dllocal_group[kq] and q.TodayUntil and q.TodayUntil > (time(date("!*t")) + dllocal_tzdiff))) then -- today's daily or all dailies
-					--if dllocal_group[kq].today then -- today's daily
+				if q.Factions and q.Factions[dllocal_faction] == 1 then
+					if (message == "GET_ALL_DAILIES") or (message == "GET_TODAYS_DAILIES" and (dllocal_group[kq] and q.TodayUntil and q.TodayUntil > time())) then -- today's daily or all dailies
 						--send each daily back
-						--print("sending "..q.Title)
 						local ser = kq.."|"..Dailies.serialize(q):gsub(" = ", "="):gsub("   ", ""):gsub(" }", "}")
 						totalLen = totalLen + #ser
-						--print(ser)
-						if Dailies.CheckExists(sender) then
-							Dailies:AddFilter()
-							count = count + 1
-							local messageKey = format("%s:%d",sender,count)
-							Dailies:SendCommMessage(dllocal_prefix, ser, "WHISPER", sender, "NORMAL", Dailies.sendProgress, messageKey)
-						end
+						Dailies:AddFilter()
+						count = count + 1
+						local messageKey = format("%s:%d",sender,count)
+						Dailies:SendCommMessage(dllocal_prefix, ser, "WHISPER", sender, "NORMAL", Dailies.sendProgress, messageKey)
 					end
 				end
 			end
 			if count > 0 then -- we queued at least 1 message
 				Dailies._recipientQueue[sender] = {count, totalLen, GetTime()}
 			end
-		else
-			if message ~= nil then 
-				--print(sender)
-				--print(message)
+		elseif type(message) == "string" then 
+			-- "<questID>|<serialized quest>" (the quest text itself may contain "|")
+			local idText, data = message:match("^(%d+)|(.*)$")
+			local id = tonumber(idText)
 
-				if string.find(message, "|") then 
-	
-					local amess = Dailies.split(message, "|")
-					local id = tonumber(amess[1])
-					local data = amess[2]
-					--print(id)
+			if id and data then 
 
-					if dllocal_timer_handle then dllocal_timer_handle:Cancel() end
-	
-					local newDaily = Dailies.deserialize(data)
+				if dllocal_timer_handle then dllocal_timer_handle:Cancel() end
 
+				local newDaily = Dailies.deserialize(data)
 
-					if newDaily.Title and newDaily.Zone and newDaily.Text then 
-						--print(newDaily.Title)
-						
-						-- check the data received is actually populated.
-						-- Zone is typically one of the last things to be updated
+				-- check the data received is actually populated.
+				-- Zone is typically one of the last things to be updated
+				if type(newDaily) == "table" and newDaily.Title and newDaily.Zone and newDaily.Text then 
 
-						if Dailies_Data.Quests[id] == nil then Dailies_Data.Quests[id] = {} end
-						Dailies_Data.Quests[id].Title = newDaily.Title or ""
-						Dailies_Data.Quests[id].Text = newDaily.Text or ""
-						Dailies_Data.Quests[id].Frequency = newDaily.Frequency or ""
-						Dailies_Data.Quests[id].Money = newDaily.Money or 0
-						Dailies_Data.Quests[id].Xp = newDaily.Xp or 0
-						Dailies_Data.Quests[id].Honor = newDaily.Honor or 0 
-						Dailies_Data.Quests[id].SubZone = newDaily.SubZone or ""
-						Dailies_Data.Quests[id].Zone = newDaily.Zone or ""
-						Dailies_Data.Quests[id].NPC = newDaily.NPC or ""
+					if Dailies_Data.Quests[id] == nil then Dailies_Data.Quests[id] = {} end
+					local q = Dailies_Data.Quests[id]
+					q.Title = tostring(newDaily.Title or "")
+					q.Text = tostring(newDaily.Text or "")
+					q.Frequency = newDaily.Frequency or ""
+					q.Money = tonumber(newDaily.Money) or 0
+					q.Xp = tonumber(newDaily.Xp) or 0
+					q.Honor = tonumber(newDaily.Honor) or 0 
+					q.SubZone = tostring(newDaily.SubZone or "")
+					q.Zone = tostring(newDaily.Zone or "")
+					q.NPC = tostring(newDaily.NPC or "")
 
-						-- don't overwrite Faction. Add to it instead
-						if Dailies_Data.Quests[id].Factions == nil then Dailies_Data.Quests[id].Factions = {} end 
-						Dailies_Data.Quests[id].Factions[dllocal_faction] = 1
+					-- don't overwrite Faction. Add to it instead
+					if type(q.Factions) ~= "table" then q.Factions = {} end 
+					q.Factions[dllocal_faction] = 1
 
-						if newDaily.TodayUntil ~= nil then 
-							if Dailies_Data.Quests[id].TodayUntil == nil or Dailies_Data.Quests[id].TodayUntil < newDaily.TodayUntil then 
-								--print(Dailies_Data.Quests[id].TodayUntil)
-								--print(newDaily.TodayUntil)
-								Dailies_Data.Quests[id].TodayUntil = newDaily.TodayUntil
-								if dllocal_group[id] and Dailies_Settings.showReceivedDailies then print("|cffff00ff[Dailies]|r Today's "..dllocal_group[id].group.. " daily is |cffffd100" .. newDaily.Title .. "|r (from |cffffd100" .. GetPlayerLink(sender, sender) .. "|r)") end
-								--print("New: " .. Dailies_Data.Quests[id].TodayUntil)
-							end
-
-							--mark as today's daily if it's a grouped one
-							Dailies.MakeGroupDaily(id)
+					local todayUntil = tonumber(newDaily.TodayUntil)
+					if todayUntil ~= nil then 
+						if q.TodayUntil == nil or q.TodayUntil < todayUntil then 
+							q.TodayUntil = todayUntil
+							if dllocal_group[id] and Dailies_Settings.showReceivedDailies then print("|cffff00ff[Dailies]|r Today's "..dllocal_group[id].group.. " daily is |cffffd100" .. q.Title .. "|r (from |cffffd100" .. PlayerLink(sender) .. "|r)") end
 						end
 
-						if Dailies_Data.Quests[id].Seen == nil then Dailies_Data.Quests[id].Seen = {} end
-						Dailies_Data.Quests[id].Seen[GetRealmName()] = 1
-		
-						--check if we already have it
-						--if Dailies_Data.Quests[id] == nil or Dailies_Data.Quests[id].Zone == "" then 
-							--print("Inserting new")
-						-- Overwrite info with latest
-						--Dailies_Data.Quests[id] = newDaily
-						--else						
-							--print("already had it")
-						--end
-
-						if Dailies_Data.Toons[dllocal_charKey].Quests[id] == nil then 
-							Dailies_Data.Toons[dllocal_charKey].Quests[id] = {} 
-							Dailies_Data.Toons[dllocal_charKey].Quests[id].Ignored = false 
-							Dailies_Data.Toons[dllocal_charKey].Quests[id].Order = Dailies.count(Dailies_Data.Toons[dllocal_charKey].Quests)+1
-						end			
-
-						if Dailies_Data.Toons[dllocal_charKey].Quests[id].Duration == nil then 
-							Dailies_Data.Toons[dllocal_charKey].Quests[id].Duration = {} 
-							Dailies_Data.Toons[dllocal_charKey].Quests[id].Duration.Current = nil 
-							Dailies_Data.Toons[dllocal_charKey].Quests[id].Duration.Last = nil 
-							Dailies_Data.Toons[dllocal_charKey].Quests[id].Duration.Fastest = nil
-							Dailies_Data.Toons[dllocal_charKey].Quests[id].Duration.Slowest = nil
-						end
-						
-						dllocal_timer_handle = C_Timer.NewTimer(5, function()
-							--print("Load Over")
-							if dllocal_frame and dllocal_frame:IsVisible() then Dailies.ShowTabContent() end
-						end, 1)
+						--mark as today's daily if it's a grouped one
+						Dailies.MakeGroupDaily(id)
 					end
+
+					if type(q.Seen) ~= "table" then q.Seen = {} end
+					q.Seen[GetRealmName()] = 1
+
+					local tq = Dailies.EnsureToonQuest(id)
+					if type(tq.Duration) ~= "table" then tq.Duration = {} end
+					
+					dllocal_timer_handle = Timer.NewTimer(5, function()
+						--print("Load Over")
+						Dailies.ScheduleRefresh(0)
+					end)
 				end
 			end
 		end
@@ -2290,7 +2596,7 @@ function Dailies:OnCommReceived(prefix, message, distribution, sender)
 		if message == 'VERSION' then 
 			if Dailies.CheckExists(sender) then Dailies:SendCommMessage(dllocal_prefix_version, dllocal_version, "WHISPER", sender ) end
 		else
-			print("|cffff00ff[Dailies]|r |cffffd100" .. GetPlayerLink(sender, sender) .. "|r is using |cffffd100v" .. message .. "|r") 
+			print("|cffff00ff[Dailies]|r |cffffd100" .. PlayerLink(sender) .. "|r is using |cffffd100v" .. tostring(message) .. "|r") 
 		end
 
 	end
@@ -2298,20 +2604,22 @@ end
 
 
 
+-- Is this guildie (still) online? Used to avoid whispering someone who just logged off.
 function Dailies.CheckExists(player)
 	-- don't send update request when guild frame is open, it's already requesting / breaks show offline behavior
-	if not GuildFrame:IsShown() then
+	if not (GuildFrame and GuildFrame:IsShown()) then
 		-- this is not instant we need to update our cache of online guildies at the respective event
 		-- the server response to request for new guild information is also throttled to ~10sec so data will never be 100% correct/real-time
 		GuildRoster()
 	end
-	local fullName = player:match("([^%-]+%-.+)")
-	if not fullName then
-		fullName = format("%s-%s",player,GetNormalizedRealmName())
+	-- 3.3.5 names have no realm part, and the roster cache is keyed on the plain name
+	local name = ShortName(player)
+	local cache = Dailies._guildOnlineCache
+	if not name then return false end
+	if not cache or cache[name] == nil then
+		return true		-- not in our cache yet: they just messaged us, so they are online
 	end
-	if fullName then -- check our last known good information
-		return Dailies._guildOnlineCache and Dailies._guildOnlineCache[fullName]
-	end
+	return cache[name]
 end
 
 -------------------------------------------------------------------------
@@ -2396,13 +2704,15 @@ function Dailies.deserialize(input)
 	   	end
 	end
 
+	if type(input) ~= 'function' then return nil end
+
 	local c
 	repeat
 		c = input()
 	until c ~= ' ' and c ~= ','
 
 	if c == '"' then
-		--string value
+		--string value, written with %q: undo its escapes (\" \\ \<newline> \r \ddd)
 	   	local s = ''
 	   	repeat
 		  	c = input()
@@ -2410,6 +2720,19 @@ function Dailies.deserialize(input)
 				--print("s = "..s)
 				return s
 		  	end
+			if c == '\\' then
+				c = input()
+				if c == 'r' then c = '\r'
+				elseif c == 'n' then c = '\n'
+				elseif Dailies.is_digit(c) then
+					local code = c
+					for _ = 1, 2 do
+						local nextc = input()
+						if Dailies.is_digit(nextc) then code = code .. nextc else input(true) break end
+					end
+					c = string.char(tonumber(code) % 256)
+				end
+			end
 		  	s = s..c
 	   	until c == ''
 
@@ -2418,7 +2741,7 @@ function Dailies.deserialize(input)
 	   	local s = c
 	   	repeat
 			c = input()
-			local d = Dailies.is_digit(c)
+			local d = Dailies.is_digit(c) or c == '.'
 			if d then
 				s = s..c
 		  	end
@@ -2441,7 +2764,8 @@ function Dailies.deserialize(input)
 		o = o:gsub('"', "") -- removing extra ""
 	   	repeat
 			c = input()
-		until c == '='
+		until c == '=' or c == ''
+		if c == '' then return nil end		-- truncated message
 		--print("o = "..o)
 
 		local subarr = {}
@@ -2592,7 +2916,7 @@ function Dailies_SlashCommandHandler( msg )
 
 	if msg == 'version' then 
 		print("|cffff00ff[Dailies]|r Sending version check.")
-		if dllocal_inGuild then 
+		if IsInGuild() then 
 			Dailies:SendCommMessage(dllocal_prefix_version, "VERSION", "GUILD", "") 
 		end
 --		Dailies:SendCommMessage(dllocal_prefix_version, "VERSION", "YELL", "") 
@@ -2609,212 +2933,3 @@ SLASH_Dailies1 = "/Dailies"
 
 
 _G[dllocal_addonName] = Dailies -- comment this out if we don't want our addon object accessible from the outside
-
-function tInvert(tbl)
-	local inverted = {};
-	for k, v in pairs(tbl) do
-		inverted[v] = k;
-	end
-	return inverted;
-end
-
-function LinkToID(link)
-	if link then
-		local _, _, id = string.find(link, "(%d+):")
-		return tonumber(id)
-	end
-end
-
-function GetQuestID(questStarter, title)
-    local title = title or GetTitleText()
-    local guid = UnitGUID("npc")
-    
-	return GetQuestIDFromName(title)
-end
-
-function GetQuestIDFromName(qT)
-    for questLogIndex = 1, 75 do
-        local questTitle, level, questTag, suggestedGroup, isHeader, isCollapsed, isComplete, isDaily, questID = GetQuestLogTitle(questLogIndex)
-        if (not questTitle) then
-            break -- We exceeded the valid quest log entries
-        end
-        if (not isHeader) then
-            if (qT == questTitle) then
-                return questID
-            end
-        end
-    end
-    return dllocal_dailyids[qT]
-end
-
-function GetActiveQuests()
-    local activeQuests = {}
-    local rawQuests = {GetGossipActiveQuests()}
-    local numActive = GetNumGossipActiveQuests()
-
-    for i = 1, numActive do
-        local index = (i - 1) * 4
-        -- Assuming indices: title, questID (adjust based on actual data order)
-        table.insert(activeQuests, {
-            title = rawQuests[index + 1],
-            questID = rawQuests[index + 2],
-            isCompleted = rawQuests[index + 3] and true or false,
-            isFailed = rawQuests[index + 4] and true or false,
-        })
-    end
-    return activeQuests
-end
---function GetActiveQuests()
---	local activeQuests = {GetGossipActiveQuests()}
---	local numActive = GetNumGossipActiveQuests()
---	for i = 1, numActive do
---		local index = (i - 1) * 4
---		activeQuests[index + 3] = activeQuests[index + 3] and true or false
---		activeQuests[index + 4] = activeQuests[index + 4] and true or false
---	end
---    for i = 1, numActive do
---		local index = (i - 1) * 6
---		table.insert(activeQuests, index + 5, false)
---		table.insert(activeQuests, index + 6, false)
---	end
---	return activeQuests
---end
-
-function GetAvailableQuests()
-    local availableQuests = {}
-    local rawQuests = {GetGossipAvailableQuests()}
-    local numAvailable = GetNumGossipAvailableQuests()
-
-    for i = 1, numAvailable do
-        local index = (i - 1) * 7
-        -- Assuming indices: title, questID, level, isRepeatable (adjust if different)
-        table.insert(availableQuests, {
-            title = rawQuests[index + 1],      -- Quest title
-            level = rawQuests[index + 2],      -- Quest level requirement
-            isTrivial = rawQuests[index + 3],  -- Low level status
-            frequency = rawQuests[index + 4],  -- Daily/weekly status
-            isRepeatable = rawQuests[index + 5],  -- Repeatable status
-        })
-    end
-    return availableQuests
-end
-
-function IsQuestFlaggedCompleted(kq)
-    -- First check: Is the quest currently in our quest log? If yes, it's NOT completed
-    for i = 1, GetNumQuestLogEntries() do
-        local _, _, _, _, _, _, _, _, logQuestID = GetQuestLogTitle(i)
-        if logQuestID == kq then
-            --print("[Dailies Debug] Quest " .. kq .. " is in quest log - NOT completed")
-            return false  -- Quest is active in our log, not completed
-        end
-    end
-    
-    -- Second check: Did we turn this quest in today (according to our own tracking)?
-    if Dailies_Data.Toons[dllocal_charKey] and 
-       Dailies_Data.Toons[dllocal_charKey].Quests and 
-       Dailies_Data.Toons[dllocal_charKey].Quests[kq] and 
-       Dailies_Data.Toons[dllocal_charKey].Quests[kq].Completed then
-        
-        local completedTime = Dailies_Data.Toons[dllocal_charKey].Quests[kq].Completed
-        local resetTime = Dailies.DailyResetTime()
-        
-        --print("[Dailies Debug] Quest " .. kq .. " completed timestamp: " .. completedTime)
-        --print("[Dailies Debug] Reset time: " .. resetTime)
-        --print("[Dailies Debug] Cutoff time: " .. (resetTime - 86400))
-        
-        -- If completed after the last reset, it's completed today
-        if completedTime >= (resetTime - 86400) then  -- 86400 = seconds in a day
-            --print("[Dailies Debug] Quest " .. kq .. " was completed today - marking as COMPLETED")
-            return true
-        else
-            --print("[Dailies Debug] Quest " .. kq .. " was completed before reset - NOT completed")
-        end
-    end
-    
-    -- Fallback: Not in our log, not in our tracking = not completed
-    --print("[Dailies Debug] Quest " .. kq .. " - no completion tracking - NOT completed")
-    return false
-end
-
---function GetAvailableQuests()
---	local availableQuests = {GetGossipAvailableQuests()}
---	local numAvailable = GetNumAvailableQuests()
---	for i = 1, numAvailable do
---		local index = (i - 1) * 4
---		availableQuests[index + 3] = availableQuests[index + 3] and true or false
---		availableQuests[index + 4] = availableQuests[index + 4] and true or false
---	end
---    for i = 1, numAvailable do
---		local index = (i - 1) * 6
---		table.insert(availableQuests, index + 5, false)
---		table.insert(availableQuests, index + 6, false)
---	end
---	return availableQuests
---end
-
--- Function to store completed quests
-function StoreCompletedQuests()
-    local questIDs = GetQuestsCompleted()
-    for questID, boolean in pairs(questIDs) do
-        dllocal_completedQuests[questID] = true
-    end
-end
-
--- Event handler for QUEST_FINISHED
---function OnQuestFinished()
---    -- After the quest is turned in, check which quest has been completed
---    local questIDsAfter = GetQuestsCompleted()
---    for questID in pairs(questIDsAfter) do
---        if not dllocal_completedQuests[questID] then  -- Find newly completed quests
---            print("Quest completed: " .. questID)
---            dllocal_completedQuests[questID] = true  -- Mark as seen
---            return questID
---        end
---    end
---end
-
-function OnQuestFinished()
-    local questIDsAfter = GetQuestsCompleted()
-    
-    --print("[Dailies Debug] QUEST_FINISHED fired, checking for completed quests...")
-    --print("[Dailies Debug] Cached quests count: " .. Dailies.count(dllocal_completedQuests))
-    --print("[Dailies Debug] Current completed count: " .. Dailies.count(questIDsAfter))
-    
-    -- Loop through NEW completed quests
-    for questID in pairs(questIDsAfter) do
-        -- Find quests not in our cache (newly completed)
-        if not dllocal_completedQuests[questID] then
-            --print("[Dailies Debug] Found potential new completion: " .. questID)
-            
-            -- VALIDATION: Check if quest is actually turned in
-            -- (not just in the completed list but still in our quest log)
-            local inLog = false
-            for i = 1, GetNumQuestLogEntries() do
-                local _, _, _, _, _, _, _, _, logQuestID = GetQuestLogTitle(i)
-                if logQuestID == questID then
-                    inLog = true
-                    break
-                end
-            end
-
-            --print("[Dailies Debug] Quest " .. questID .. " in log: " .. tostring(inLog))
-
-            -- Only report as completed if it's NOT in the log
-            -- (meaning it was turned in, not just accepted)
-            if not inLog then
-                --print("|cff00ff00[Dailies] Quest completed: " .. questID .. "|r")
-                dllocal_completedQuests[questID] = true
-                return questID
-            end
-        end
-    end
-    
-    --print("[Dailies Debug] No newly completed quest detected")
-    return nil  -- Return nil if nothing was turned in
-end
-
-function PrintHandler(message, debug)
-    if dllocal_debug == true or debug == false then
-        print(message)
-    end
-end
