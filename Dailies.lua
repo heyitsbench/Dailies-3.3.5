@@ -82,6 +82,7 @@ dllocal_exclu = {}					-- mutually exclusive quests
 dllocal_ProfessionNames = {} 		-- profession names in all locales
 dllocal_givers = {}					-- quest givers, for quests sharing a title (Argent Tournament)
 dllocal_tournament = {}				-- Argent Tournament dailies
+dllocal_questfaction = {}			-- dailies only one faction can do
 
 local dllocal_questLog = nil			-- cached snapshot of the quest log, see Dailies.RefreshQuestLog()
 local dllocal_pendingDetail = nil		-- details of the daily last shown at a quest giver (confirmed on accept)
@@ -304,6 +305,29 @@ local function SamePool(a, b)
 		and (ga.faction == nil or gb.faction == nil or ga.faction == gb.faction)
 end
 
+-- The one faction that can do this daily, if it is faction-specific (nil = both)
+function Dailies.FactionOf(id)
+	local f = dllocal_questfaction and dllocal_questfaction[id]
+	if f then return f end
+	local g = dllocal_group[id]
+	return g and g.faction or nil
+end
+
+-- Can a quest shared by a guildie be used by our faction? On cross-faction servers the guild
+-- (and so the scans) can include the other faction.
+local function SharedQuestUsable(id, newDaily)
+	local only = Dailies.FactionOf(id)
+	if only then return only == dllocal_faction end
+	-- neutral pool (Dalaran/Shattrath fishing, heroics, ...): the same quest for everyone that day
+	if dllocal_group[id] then return true end
+	-- a daily in our data that isn't faction-specific
+	if dllocal_dailyids and dllocal_dailyids[newDaily.Title] then return true end
+	-- unknown quest (custom content): only if it's known to be available to our faction
+	if type(newDaily.Factions) == "table" and newDaily.Factions[dllocal_faction] == 1 then return true end
+	local known = Dailies_Data.Quests[id]
+	return known ~= nil and type(known.Factions) == "table" and known.Factions[dllocal_faction] == 1
+end
+
 -- Argent Tournament dailies can be hidden from the options
 local function TournamentShown(kq)
 	return not (dllocal_tournament and dllocal_tournament[kq]) or Dailies_Settings.showTournamentDailies ~= false
@@ -363,14 +387,17 @@ function Dailies.CurrentQuestID()
 		if ok and type(gid) == "number" and gid > 0 then return gid end
 	end
 
+	local function ours(qid) local only = Dailies.FactionOf(qid); return only == nil or only == dllocal_faction end
 	local sameFaction, otherFaction
 	for kq, q in pairs(Dailies_Data.Quests) do
-		if q.Title == title then
+		if q.Title == title and ours(kq) then
 			if q.Factions and q.Factions[dllocal_faction] == 1 then sameFaction = kq
 			else otherFaction = otherFaction or kq end
 		end
 	end
-	return sameFaction or (dllocal_dailyids and dllocal_dailyids[title]) or otherFaction
+	local listed = dllocal_dailyids and dllocal_dailyids[title]
+	if listed and not ours(listed) then listed = nil end
+	return sameFaction or listed or otherFaction
 end
 
 -- Make sure this toon has a usable entry for a quest
@@ -451,6 +478,17 @@ function Dailies.SanitizeSavedData()
 		else
 			for kq, tq in pairs(t.Quests) do
 				if type(tq) ~= "table" then t.Quests[kq] = nil end
+			end
+		end
+	end
+
+	-- faction-specific dailies can only belong to their own faction (older versions took them from
+	-- cross-faction guild scans and marked them as available to the receiving character's faction)
+	for id, q in pairs(Dailies_Data.Quests) do
+		local only = Dailies.FactionOf(id)
+		if only then
+			for f in pairs(q.Factions) do
+				if f ~= only then q.Factions[f] = nil end
 			end
 		end
 	end
@@ -2478,7 +2516,8 @@ function Dailies.ClassifyQuests()
 			if (dllocal_seasonal[kq] == nil or (Dailies_Settings.showSeasonalDailies and dllocal_seasonal[kq] ~= nil)) and TournamentShown(kq) then 
 
 				-- only show quests available to this faction
-				if Dailies_Data.Quests[kq].Factions and Dailies_Data.Quests[kq].Factions[dllocal_faction] == 1 then 
+				if Dailies_Data.Quests[kq].Factions and Dailies_Data.Quests[kq].Factions[dllocal_faction] == 1
+						and (Dailies.FactionOf(kq) == nil or Dailies.FactionOf(kq) == dllocal_faction) then 
 
 					if Dailies_Data.Quests[kq].Seen and  Dailies_Data.Quests[kq].Seen[GetRealmName()] == 1 then 
 
@@ -2714,7 +2753,7 @@ function Dailies:OnCommReceived(prefix, message, distribution, sender)
 
 				-- check the data received is actually populated.
 				-- Zone is typically one of the last things to be updated
-				if type(newDaily) == "table" and newDaily.Title and newDaily.Zone and newDaily.Text then 
+				if type(newDaily) == "table" and newDaily.Title and newDaily.Zone and newDaily.Text and SharedQuestUsable(id, newDaily) then 
 
 					if Dailies_Data.Quests[id] == nil then Dailies_Data.Quests[id] = {} end
 					local q = Dailies_Data.Quests[id]
