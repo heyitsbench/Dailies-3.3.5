@@ -1,4 +1,6 @@
 dllocal_dailyids = {
+    ["Hellfire Fortifications"]                               = 10106,
+    ["Hellfire Fortifications"]                               = 10110,
     ["Fires Over Skettis"]                                    = 11008,
     ["Netherwing Crystals"]                                   = 11015,
     ["Nethermine Flayer Hide"]                                = 11016,
@@ -18,6 +20,7 @@ dllocal_dailyids = {
     ["The Deadliest Trap Ever Laid"]                          = 11097,
     ["The Deadliest Trap Ever Laid"]                          = 11101,
     ["Stop the Fires!"]                                       = 11131,
+    ["Break the Blockade"]                                    = 11153,
     ["Stop the Fires!"]                                       = 11219,
     ["Bark for the Barleybrews!"]                             = 11293,
     ["Bark for the Thunderbrews!"]                            = 11294,
@@ -44,6 +47,8 @@ dllocal_dailyids = {
     ["Wanted: Malicious Instructors"]                         = 11376,
     ["Revenge is Tasty"]                                      = 11377,
     ["Wanted: The Epoch Hunter's Head"]                       = 11378,
+    ["Super Hot Stew"]                                        = 11379,
+    ["Manalicious"]                                           = 11380,
     ["Soup for the Soul"]                                     = 11381,
     ["Wanted: Aeonus's Hourglass"]                            = 11382,
     ["Wanted: Rift Lords"]                                    = 11383,
@@ -53,6 +58,7 @@ dllocal_dailyids = {
     ["Wanted: Tempest-Forge Destroyers"]                      = 11387,
     ["Wanted: The Scroll of Skyriss"]                         = 11388,
     ["Wanted: Arcatraz Sentinels"]                            = 11389,
+    ["Steel Gate Patrol"]                                     = 11391,
     ["Call the Headless Horseman"]                            = 11401,
     ["Call the Headless Horseman"]                            = 11404,
     ["Call the Headless Horseman"]                            = 11405,
@@ -62,6 +68,9 @@ dllocal_dailyids = {
     ["The Sanctum Wards"]                                     = 11496,
     ["Wanted: The Signet Ring of Prince Kael'thas"]           = 11499,
     ["Wanted: Sisters of Torment"]                            = 11500,
+    ["In Defense of Halaa"]                                   = 11502,
+    ["Spirits of Auchindoun"]                                 = 11505,
+    ["Spirits of Auchindoun"]                                 = 11506,
     ["Intercepting the Mana Cells"]                           = 11513,
     ["Maintaining the Sunwell Portal"]                        = 11514,
     ["Blood for Blood"]                                       = 11515,
@@ -83,9 +92,14 @@ dllocal_dailyids = {
     ["Intercept the Reinforcements"]                          = 11542,
     ["Keeping the Enemy at Bay"]                              = 11543,
     ["Ata'mal Armaments"]                                     = 11544,
+    ["A Charitable Donation"]                                 = 11545,
+    ["Open for Business"]                                     = 11546,
     ["Know Your Ley Lines"]                                   = 11547,
+    ["Your Continued Support"]                                = 11548,
     ["Crocolisks in the City"]                                = 11665,
+    ["Bait Bandits"]                                          = 11666,
     ["The One That Got Away"]                                 = 11667,
+    ["Shrimpin' Ain't Easy"]                                  = 11668,
     ["Felblood Fillet"]                                       = 11669,
     ["Summon Ahune"]                                          = 11691,
     ["Gaining the Advantage"]                                 = 11875,
@@ -105,15 +119,44 @@ dllocal_dailyids = {
     ["Striking Back"]                                         = 11954,
     ["Planning for the Future"]                               = 11960,
     ["This One Time, When I Was Drunk..."]                    = 12020,
+    ["Seared Scourge"]                                        = 12038,
+    ["Insult Coren Direbrew"]                                 = 12062,
     ["Smash the Pumpkin"]                                     = 12133,
-    [",,Let the Fires Come!,,"]                               = 12135,
-    [",,Let the Fires Come!,,"]                               = 12139,
+    ["\"Let the Fires Come!\""]                               = 12135,
+    ["\"Let the Fires Come!\""]                               = 12139,
     ["Smash the Pumpkin"]                                     = 12155,
+    ["Blackriver Brawl"]                                      = 12170,
     ["This One Time, When I Was Drunk..."]                    = 12192,
+    ["Shredder Repair"]                                       = 12244,
+    ["Pieces Parts"]                                          = 12268,
+    ["Shred the Alliance"]                                    = 12270,
+    ["Making Repairs"]                                        = 12280,
+    ["Keep 'Em on Their Heels"]                               = 12284,
+    ["Overwhelmed!"]                                          = 12288,
+    ["Kick 'Em While They're Down"]                           = 12289,
+    ["Life or Death"]                                         = 12296,
+    ["Down With Captain Zorna!"]                              = 12314,
+    ["Crush Captain Brightwater!"]                            = 12315,
+    ["Keep Them at Bay!"]                                     = 12316,
+    ["Keep Them at Bay"]                                      = 12317,
+    ["Smoke 'Em Out"]                                         = 12323,
+    ["Smoke 'Em Out"]                                         = 12324,
     ["Defending Wyrmrest Temple"]                             = 12372,
+    ["Riding the Red Rocket"]                                 = 12432,
+    ["Riding the Red Rocket"]                                 = 12437,
+    ["Blackriver Skirmish"]                                   = 12444,
     ["Troll Patrol"]                                          = 12501,
+    ["Troll Patrol: High Standards"]                          = 12502,
+    ["Troll Patrol: Whatdya Want, a Medal?"]                  = 12519,
+    ["Troll Patrol: The Alchemist's Apprentice"]              = 12541,
     ["Troll Patrol"]                                          = 12563,
+    ["Troll Patrol: Something for the Pain"]                  = 12564,
+    ["Troll Patrol: Done to Death"]                           = 12568,
+    ["Troll Patrol: Creature Comforts"]                       = 12585,
     ["Troll Patrol"]                                          = 12587,
+    ["Troll Patrol: Can You Dig It?"]                         = 12588,
+    ["Troll Patrol: Throwing Down"]                           = 12591,
+    ["Troll Patrol: Couldn't Care Less"]                      = 12594,
     ["The Alchemist's Apprentice"]                            = 12601,
     ["The Alchemist's Apprentice"]                            = 12602,
     ["Congratulations!"]                                      = 12604,
@@ -135,7 +178,9 @@ dllocal_dailyids = {
     ["Power of the Great Ones"]                               = 12762,
     ["From Their Corpses, Rise!"]                             = 12813,
     ["No Fly Zone"]                                           = 12815,
+    ["Overstock"]                                             = 12833,
     ["Intelligence Gathering"]                                = 12838,
+    ["Pushed Too Far"]                                        = 12869,
     ["Shipment: Blood Jade Amulet "]                          = 12958,
     ["Shipment: Glowing Ivory Figurine"]                      = 12959,
     ["Shipment: Wicked Sun Brooch"]                           = 12960,
@@ -162,6 +207,8 @@ dllocal_dailyids = {
     ["Cheese for Glowergold"]                                 = 13115,
     ["Mustard Dogs!"]                                         = 13116,
     ["All Things in Good Time"]                               = 13190,
+    ["No Mercy!"]                                             = 13233,
+    ["Make Them Pay!"]                                        = 13234,
     ["Timear Foresees Centrifuge Constructs in your Future!"] = 13240,
     ["Timear Foresees Ymirjar Berserkers in your Future!"]    = 13241,
     ["Timear Foresees Infinite Agents in your Future!"]       = 13243,
@@ -178,9 +225,41 @@ dllocal_dailyids = {
     ["Proof of Demise: Anub'arak"]                            = 13254,
     ["Proof of Demise: Herald Volazj"]                        = 13255,
     ["Proof of Demise: Cyanigosa"]                            = 13256,
+    ["Volatility"]                                            = 13261,
+    ["That's Abominable!"]                                    = 13276,
+    ["King of the Mountain"]                                  = 13280,
+    ["Neutralizing the Plague"]                               = 13281,
+    ["King of the Mountain"]                                  = 13283,
+    ["Assault by Ground"]                                     = 13284,
+    ["That's Abominable!"]                                    = 13289,
+    ["The Solution Solution"]                                 = 13292,
+    ["Neutralizing the Plague"]                               = 13297,
     ["Slaves to Saronite"]                                    = 13300,
+    ["Assault by Ground"]                                     = 13301,
     ["Slaves to Saronite"]                                    = 13302,
+    ["Assault by Air"]                                        = 13309,
+    ["Assault by Air"]                                        = 13310,
+    ["Drag and Drop"]                                         = 13323,
+    ["Blood of the Chosen"]                                   = 13330,
+    ["Keeping the Alliance Blind"]                            = 13331,
+    ["Capture More Dispatches"]                               = 13333,
+    ["Blood of the Chosen"]                                   = 13336,
+    ["Not a Bug"]                                             = 13344,
+    ["No Rest For The Wicked"]                                = 13350,
+    ["Drag and Drop"]                                         = 13353,
+    ["Not a Bug"]                                             = 13365,
+    ["No Rest For The Wicked"]                                = 13368,
+    ["Total Ohmage: The Valley of Lost Hope!"]                = 13376,
+    ["Putting the Hertz: The Valley of Lost Hope"]            = 13382,
+    ["Static Shock Troops: the Bombardment"]                  = 13404,
+    ["Riding the Wavelength: The Bombardment"]                = 13406,
     ["Aces High!"]                                            = 13414,
+    ["Maintaining Discipline"]                                = 13422,
+    ["Defending Your Title"]                                  = 13423,
+    ["Back to the Pit"]                                       = 13424,
+    ["The Aberrations Must Die"]                              = 13425,
+    ["The Great Egg Hunt"]                                    = 13479,
+    ["The Great Egg Hunt"]                                    = 13480,
     ["A Valiant's Field Training"]                            = 13592,
     ["A Worthy Weapon"]                                       = 13600,
     ["A Blade Fit For A Champion"]                            = 13603,
@@ -275,10 +354,14 @@ dllocal_dailyids = {
     ["Battle Before The Citadel"]                             = 13862,
     ["Battle Before The Citadel"]                             = 13863,
     ["Battle Before The Citadel"]                             = 13864,
+    ["Hungry, Hungry Hatchling"]                              = 13889,
     ["Gorishi Grub"]                                          = 13903,
     ["Poached, Scrambled, Or Raw?"]                           = 13904,
     ["Searing Roc Feathers"]                                  = 13905,
+    ["Searing Roc Feathers"]                                  = 13914,
     ["Hungry, Hungry Hatchling"]                              = 13915,
+    ["Poached, Scrambled, Or Raw?"]                           = 13916,
+    ["Gorishi Grub"]                                          = 13917,
     ["Can't Get Enough Turkey"]                               = 14048,
     ["Don't Forget The Stuffing!"]                            = 14051,
     ["We're Out of Cranberry Chutney Again?"]                 = 14053,
@@ -317,6 +400,7 @@ dllocal_dailyids = {
     ["A Gift for the King of Stormwind"]                      = 24597,
     ["A Gift for the Lord of Ironforge"]                      = 24609,
     ["A Gift for the High Priestess of Elune"]                = 24610,
+    ["A Gift for the Prophet"]                                = 24611,
     ["A Gift for the Warchief"]                               = 24612,
     ["A Gift for the Banshee Queen"]                          = 24613,
     ["A Gift for the High Chieftain"]                         = 24614,
@@ -434,10 +518,10 @@ dllocal_group = {
     [13240] = { group = "Wrath Dungeon"; expac=3, short = "Oc",  long = "The Oculus" },
     [13241] = { group = "Wrath Dungeon"; expac=3, short = "UP",  long = "Utgarde Pinnacle" },
 
-    [13915] = { group = "Venomhide Ravasaur"; expac=3,  faction="Horde"},
-    [13903] = { group = "Venomhide Ravasaur"; expac=3,  faction="Horde"},
-    [13904] = { group = "Venomhide Ravasaur"; expac=3,  faction="Horde"},
-    [13905] = { group = "Venomhide Ravasaur"; expac=3,  faction="Horde"},
+    [13915] = { group = "Venomhide Ravasaur II"; expac=3,  faction="Horde", optin=true},
+    [13903] = { group = "Venomhide Ravasaur"; expac=3,  faction="Horde", optin=true},
+    [13904] = { group = "Venomhide Ravasaur"; expac=3,  faction="Horde", optin=true},
+    [13905] = { group = "Venomhide Ravasaur"; expac=3,  faction="Horde", optin=true},
 
 
     -- Argent Tournament (Icecrown): one quest of each pool is offered per day.
@@ -517,6 +601,43 @@ dllocal_group = {
     [14107] = { group = "AT Crusader: Silverdawn"; expac=3, optin=true }, -- The Fate Of The Fallen
     [14108] = { group = "AT Crusader: Silverdawn"; expac=3, optin=true }, -- Get Kraken!
 
+
+    -- Pools checked against AzerothCore (pool_quest): one quest of each is offered per day.
+    -- optin: the "Unknown ... Daily" line only appears once this character has done one of them.
+
+    [12703] = { group = "Frenzyheart: Vekgar"; expac=3, optin=true }, -- Kartak's Rampage
+    [12759] = { group = "Frenzyheart: Vekgar"; expac=3, optin=true }, -- Tools of War
+    [12760] = { group = "Frenzyheart: Vekgar"; expac=3, optin=true }, -- Secret Strength of the Frenzyheart
+
+    [12732] = { group = "Frenzyheart: Rejek"; expac=3, optin=true }, -- The Heartblood's Strength
+    [12734] = { group = "Frenzyheart: Rejek"; expac=3, optin=true }, -- Rejek: First Blood
+    [12741] = { group = "Frenzyheart: Rejek"; expac=3, optin=true }, -- Strength of the Tempest
+    [12758] = { group = "Frenzyheart: Rejek"; expac=3, optin=true }, -- A Hero's Headgear
+
+    [12726] = { group = "Oracles: Soo-Nee"; expac=3, optin=true }, -- Song of Wind and Water
+    [12735] = { group = "Oracles: Soo-Nee"; expac=3, optin=true }, -- A Cleansing Song
+    [12736] = { group = "Oracles: Soo-Nee"; expac=3, optin=true }, -- Song of Reflection
+    [12737] = { group = "Oracles: Soo-Nee"; expac=3, optin=true }, -- Song of Fecundity
+
+    [12705] = { group = "Oracles: Soo-Dow"; expac=3, optin=true }, -- Will of the Titans
+    [12761] = { group = "Oracles: Soo-Dow"; expac=3, optin=true }, -- Mastery of the Crystals
+    [12762] = { group = "Oracles: Soo-Dow"; expac=3, optin=true }, -- Power of the Great Ones
+
+    [12501] = { group = "Troll Patrol"; expac=3, optin=true }, -- Troll Patrol
+    [12563] = { group = "Troll Patrol"; expac=3, optin=true }, -- Troll Patrol
+    [12587] = { group = "Troll Patrol"; expac=3, optin=true }, -- Troll Patrol
+
+    [13422] = { group = "Gretta the Arbiter"; expac=3, optin=true }, -- Maintaining Discipline
+    [13423] = { group = "Gretta the Arbiter"; expac=3, optin=true }, -- Defending Your Title
+    [13424] = { group = "Gretta the Arbiter"; expac=3, optin=true }, -- Back to the Pit
+
+    [24629] = { group = "Crown Chemical Co."; expac=3, optin=true }, -- A Perfect Puff of Perfume
+    [24635] = { group = "Crown Chemical Co."; expac=3, optin=true }, -- A Cloudlet of Classy Cologne
+    [24636] = { group = "Crown Chemical Co."; expac=3, optin=true }, -- Bonbon Blitz
+    [13889] = { group = "Venomhide Ravasaur"; expac=3,  faction="Horde", optin=true}, -- Hungry, Hungry Hatchling (pool 350)
+    [13914] = { group = "Venomhide Ravasaur II"; expac=3,  faction="Horde", optin=true}, -- Searing Roc Feathers (pool 351)
+    [13916] = { group = "Venomhide Ravasaur II"; expac=3,  faction="Horde", optin=true}, -- Poached, Scrambled, Or Raw? (pool 351)
+    [13917] = { group = "Venomhide Ravasaur II"; expac=3,  faction="Horde", optin=true}, -- Gorishi Grub (pool 351)
 }
 
 
@@ -559,6 +680,7 @@ dllocal_temp = {
     -- post-construction Argent Tournament daily (3.2+) has been seen.
     [13627] = dllocal_atPostConstruction, -- Jack Me Some Lumber
     [13681] = dllocal_atPostConstruction, -- A Chip Off the Ulduar Block
+    [11545] = 11548, -- SSO donations: "A Charitable Donation" becomes "Your Continued Support" once the monument is built
 }
 
 
@@ -582,7 +704,7 @@ dllocal_reps = {
     [11097] = { [1015] = 500 },
     [11101] = { [1015] = 500 },
 
-    [11085] = { [1031] = 350 },
+    [11085] = { [1031] = 150 },
     [11354] = { [933]  = 350, [946]  = 350, [947] = 350 },
     [11362] = { [933]  = 350, [946]  = 350, [947] = 350 },
     [11363] = { [933]  = 350, [946]  = 350, [947] = 350 },
@@ -605,7 +727,7 @@ dllocal_reps = {
     [11387] = { [933]  = 250, [935]  = 250 },
     [11388] = { [933]  = 350, [935]  = 350 },
     [11389] = { [933]  = 250, [935]  = 250 },
-    [11499] = { [933]  = 250, [1077] = 250 },
+    [11499] = { [933]  = 350, [1077] = 350 },
     [11500] = { [933]  = 250, [1077] = 250 },
 
     --SSO
@@ -647,16 +769,16 @@ dllocal_reps = {
     [11877] = { [1077] = 250 },
 
     -- WOTLK Kaluak
-    [11945] = { [1073] = 500 },
-    [11472] = { [1073] = 500 },
-    [11960] = { [1073] = 500 },
+    [11945] = { [1073] = 250 },
+    [11472] = { [1073] = 250 },
+    [11960] = { [1073] = 250 },
 
     -- WOTLK Sons of Hodir
     [12981] = { [1119] = 350 },
     [12977] = { [1119] = 350 },
-    [13006] = { [1119] = 350 },
+    [13006] = { [1119] = 455 },
     [12994] = { [1119] = 350 },
-    [13003] = { [1119] = 350 },
+    [13003] = { [1119] = 500 },
     [13046] = { [1119] = 350 },
  
     -- Argent Crusade
@@ -830,6 +952,47 @@ dllocal_reps = {
     [13862] = { [1106] = 250, [1124] = 250 }, -- Battle Before The Citadel
     [13863] = { [1098] = 250, [1124] = 250 }, -- Battle Before The Citadel
     [13864] = { [1094] = 250, [1098] = 250 }, -- Battle Before The Citadel
+
+    -- Pilgrim's Bounty (city reputation)
+    [14048] = { [47] = 150 }, -- Can't Get Enough Turkey
+    [14051] = { [47] = 150 }, -- Don't Forget The Stuffing!
+    [14053] = { [72] = 150 }, -- We're Out of Cranberry Chutney Again?
+    [14054] = { [69] = 150 }, -- Easy As Pie
+    [14055] = { [72] = 150 }, -- She Says Potato
+    [14058] = { [68] = 150 }, -- She Says Potato
+    [14059] = { [68] = 150 }, -- We're Out of Cranberry Chutney Again?
+    [14060] = { [81] = 150 }, -- Easy As Pie
+    [14061] = { [76] = 150 }, -- Can't Get Enough Turkey
+    [14062] = { [76] = 150 }, -- Don't Forget The Stuffing!
+
+    -- Added from AzerothCore: Icecrown, Grizzly Hills, Howling Fjord, Storm Peaks and Outland PvP dailies
+    [10106] = { [946] = 150 }, -- Hellfire Fortifications
+    [10110] = { [947] = 150 }, -- Hellfire Fortifications
+    [11153] = { [1050] = 250 }, -- Break the Blockade
+    [11391] = { [1068] = 250 }, -- Steel Gate Patrol
+    [11502] = { [978] = 500 }, -- In Defense of Halaa
+    [11545] = { [1077] = 150 }, -- A Charitable Donation
+    [11546] = { [1077] = 250 }, -- Open for Business
+    [11548] = { [1077] = 150 }, -- Your Continued Support
+    [12170] = { [1052] = 250 }, -- Blackriver Brawl
+    [12270] = { [1085] = 250 }, -- Shred the Alliance
+    [12280] = { [1085] = 250 }, -- Making Repairs
+    [12284] = { [1085] = 250 }, -- Keep 'Em on Their Heels
+    [12288] = { [1085] = 250 }, -- Overwhelmed!
+    [12289] = { [1050] = 250 }, -- Kick 'Em While They're Down
+    [12296] = { [1050] = 250 }, -- Life or Death
+    [12444] = { [1050] = 250 }, -- Blackriver Skirmish
+    [12869] = { [1126] = 250 }, -- Pushed Too Far
+    [13280] = { [1050] = 250 }, -- King of the Mountain
+    [13283] = { [1085] = 250 }, -- King of the Mountain
+    [13284] = { [1050] = 250 }, -- Assault by Ground
+    [13301] = { [1085] = 250 }, -- Assault by Ground
+    [13309] = { [1050] = 250 }, -- Assault by Air
+    [13310] = { [1085] = 250 }, -- Assault by Air
+    [13330] = { [1085] = 250 }, -- Blood of the Chosen
+    [13331] = { [1085] = 250 }, -- Keeping the Alliance Blind
+    [13333] = { [1050] = 250 }, -- Capture More Dispatches
+    [13336] = { [1050] = 250 }, -- Blood of the Chosen
 }
 
 dllocal_repicons = {
@@ -866,6 +1029,13 @@ dllocal_repicons = {
     [81]   = 'Interface\\Icons\\inv_misc_tournaments_symbol_tauren',                       -- Thunder Bluff
     [68]   = 'Interface\\Icons\\inv_misc_tournaments_symbol_scourge',                      -- Undercity
     [911]  = 'Interface\\Icons\\inv_misc_tournaments_symbol_bloodelf',                     -- Silvermoon City
+    -- Northrend war factions and others (client faction emblems)
+    [1050] = 'Interface\\PVPFrame\\PVP-Currency-Alliance',                               -- Valiance Expedition
+    [1068] = 'Interface\\PVPFrame\\PVP-Currency-Alliance',                               -- Explorers' League
+    [1126] = 'Interface\\PVPFrame\\PVP-Currency-Alliance',                               -- The Frostborn
+    [1085] = 'Interface\\PVPFrame\\PVP-Currency-Horde',                                  -- Warsong Offensive
+    [1052] = 'Interface\\PVPFrame\\PVP-Currency-Horde',                                  -- Horde Expedition
+    [978]  = 'Interface\\Icons\\INV_Misc_Foot_Centaur',                                   -- Kurenai
 }
 
 dllocal_repfaction = {
@@ -883,6 +1053,12 @@ dllocal_repfaction = {
     [81]   = 'Horde',    -- Thunder Bluff
     [68]   = 'Horde',    -- Undercity
     [911]  = 'Horde',    -- Silvermoon City
+    [1050] = 'Alliance', -- Valiance Expedition
+    [1068] = 'Alliance', -- Explorers' League
+    [1126] = 'Alliance', -- The Frostborn
+    [978]  = 'Alliance', -- Kurenai
+    [1085] = 'Horde',    -- Warsong Offensive
+    [1052] = 'Horde',    -- Horde Expedition
 }
 
 dllocal_attuneId = {
@@ -1017,6 +1193,10 @@ dllocal_seasonal = {
     [14054] = true, -- Pilgrim's Bounty
     [14059] = true, -- Pilgrim's Bounty
     [14062] = true, -- Pilgrim's Bounty
+    [12062] = true, -- Brewfest (Insult Coren Direbrew)
+    [13479] = true, -- Noblegarden (The Great Egg Hunt)
+    [13480] = true, -- Noblegarden (The Great Egg Hunt)
+    [24611] = true, -- Love is in the Air (A Gift for the Prophet)
 }
 
 
@@ -1140,8 +1320,38 @@ dllocal_tournament = {
 -- Quests that share a title with other quests (the Argent Tournament has up to 12 quests per title):
 -- which quest each NPC hands out, so the right quest ID is recorded at the quest giver.
 -- [npcID] = { ["Quest title"] = questID }  or  { Alliance = questID, Horde = questID } when the NPC
--- gives both factions their own version.
+-- gives both factions their own version, or { questID, questID, ... } when the same NPC has several
+-- quests with that title (the addon then waits for the quest log to tell them apart).
 dllocal_givers = {
+    [18266] = { ["Hellfire Fortifications"] = 10106 }, -- Warrant Officer Tracy Proudwell
+    [18267] = { ["Hellfire Fortifications"] = 10110 }, -- Battlecryer Blackeye
+    [23434] = { ["The Deadliest Trap Ever Laid"] = 11097 }, -- Commander Hobb
+    [23452] = { ["The Deadliest Trap Ever Laid"] = 11101 }, -- Commander Arcus
+    [23973] = { ["\"Let the Fires Come!\""] = 12139, ["Stop the Fires!"] = 11219 }, -- Masked Orphan Matron
+    [24519] = { ["\"Let the Fires Come!\""] = 12135, ["Stop the Fires!"] = 11131 }, -- Costumed Orphan Matron
+    [24885] = { ["Spirits of Auchindoun"] = 11505 }, -- Exorcist Sullivan
+    [24886] = { ["Spirits of Auchindoun"] = 11506 }, -- Exorcist Vaisha
+    [27602] = { ["Smoke 'Em Out"] = 12323 }, -- Sergeant Downey
+    [27606] = { ["Smoke 'Em Out"] = 12324 }, -- Stone Guard Ragetotem
+    [27708] = { ["Riding the Red Rocket"] = 12432 }, -- General Gorlok
+    [27759] = { ["Riding the Red Rocket"] = 12437 }, -- Commander Howser
+    [28039] = { ["Troll Patrol"] = { 12501, 12563, 12587 } }, -- Commander Kunz
+    [28705] = { ["Cheese for Glowergold"] = 13103, ["Convention at the Legerdemain"] = 13101, ["Infused Mushroom Meatloaf"] = 13100, ["Mustard Dogs!"] = 13107, ["Sewer Stew"] = 13102 }, -- Katherine Lee
+    [29631] = { ["Cheese for Glowergold"] = 13115, ["Convention at the Legerdemain"] = 13113, ["Infused Mushroom Meatloaf"] = 13112, ["Mustard Dogs!"] = 13116, ["Sewer Stew"] = 13114 }, -- Awilo Lon'gomba
+    [29795] = { ["Drag and Drop"] = 13353, ["Neutralizing the Plague"] = 13281, ["No Rest For The Wicked"] = 13368, ["Not a Bug"] = 13365, ["That's Abominable!"] = 13276 }, -- Koltira Deathweaver
+    [29799] = { ["Drag and Drop"] = 13323, ["Neutralizing the Plague"] = 13297, ["No Rest For The Wicked"] = 13350, ["Not a Bug"] = 13344, ["That's Abominable!"] = 13289 }, -- Thassarian
+    [31259] = { ["Slaves to Saronite"] = 13300 }, -- Absalan the Pious
+    [31261] = { ["Slaves to Saronite"] = 13302 }, -- Brother Keltan
+    [31737] = { ["Assault by Ground"] = 13284 }, -- Skybreaker Squad Leader
+    [31776] = { ["King of the Mountain"] = 13280 }, -- Frazzle Geargrinder
+    [31781] = { ["King of the Mountain"] = 13283 }, -- Blast Thunderbomb
+    [31808] = { ["Assault by Air"] = 13309 }, -- Ground Commander Koup
+    [31833] = { ["Assault by Ground"] = 13301 }, -- Kor'kron Squad Leader
+    [31834] = { ["Assault by Air"] = 13310 }, -- Ground Commander Xutjja
+    [32301] = { ["Blood of the Chosen"] = 13330 }, -- Warbringer Davos Rioht
+    [32302] = { ["Blood of the Chosen"] = 13336 }, -- Knight-Captain Drosche
+    [32798] = { ["The Great Egg Hunt"] = 13479 }, -- Spring Gatherer
+    [32799] = { ["The Great Egg Hunt"] = 13480 }, -- Spring Collector
     [33222] = { ["A Valiant's Field Training"] = 13592 }, -- Sir Marcus Barlowe
     [33223] = { ["At The Enemy's Gates"] = 13847, ["The Grand Melee"] = 13665 }, -- Captain Joseph Holley
     [33225] = { ["A Blade Fit For A Champion"] = 13603, ["A Worthy Weapon"] = 13600, ["The Edge Of Winter"] = 13616 }, -- Marshal Jacob Alerius
@@ -1187,12 +1397,23 @@ dllocal_givers = {
     [33770] = { ["Among the Champions"] = { Alliance = 13793, Horde = 13814 } }, -- Illyrie Nightfall
     [33771] = { ["Among the Champions"] = { Alliance = 13790, Horde = 13811 } }, -- Luuri
     [34210] = { ["Contributin' To The Cause"] = 13846 }, -- Squire Artie
+    [34320] = { ["Gorishi Grub"] = { 13903, 13917 }, ["Hungry, Hungry Hatchling"] = { 13889, 13915 }, ["Poached, Scrambled, Or Raw?"] = { 13904, 13916 }, ["Searing Roc Feathers"] = { 13905, 13914 } }, -- Venomhide Hatchling
+    [34708] = { ["Can't Get Enough Turkey"] = 14048, ["Don't Forget The Stuffing!"] = 14051 }, -- Caitrin Ironkettle
+    [34710] = { ["We're Out of Cranberry Chutney Again?"] = 14053 }, -- Ellen Moore
+    [34711] = { ["Easy As Pie"] = 14054 }, -- Mary Allerton
+    [34712] = { ["We're Out of Cranberry Chutney Again?"] = 14059 }, -- Roberta Carter
+    [34713] = { ["Can't Get Enough Turkey"] = 14061, ["Don't Forget The Stuffing!"] = 14062 }, -- Ondani Greatmill
+    [34714] = { ["Easy As Pie"] = 14060 }, -- Mahara Goldwheat
+    [34744] = { ["She Says Potato"] = 14055 }, -- Jasper Moore
+    [34768] = { ["She Says Potato"] = 14058 }, -- William Mullins
     [34771] = { ["A Leg Up"] = 14143, ["Rescue at Sea"] = 14136, ["Stop The Aggressors"] = 14140, ["The Light's Mercy"] = 14144, ["You've Really Done It This Time, Kul"] = 14142 }, -- Girana the Blooded
     [34880] = { ["A Leg Up"] = 14074, ["Rescue at Sea"] = 14152, ["Stop The Aggressors"] = 14080, ["The Light's Mercy"] = 14077, ["You've Really Done It This Time, Kul"] = 14096 }, -- Narasi Snowdawn
     [34882] = { ["Deathspeaker Kharos"] = 14105, ["Drottinn Hrothgar"] = 14101, ["Mistcaller Yngvar"] = 14102, ["Ornolf The Scarred"] = 14104 }, -- High Crusader Adelard
     [34912] = { ["Breakfast Of Champions"] = 14076, ["Gormok Wants His Snobolds"] = 14090, ["What Do You Feed a Yeti, Anyway?"] = 14112 }, -- Savinia Loresong
     [34914] = { ["Breakfast Of Champions"] = 14092, ["Gormok Wants His Snobolds"] = 14141, ["What Do You Feed a Yeti, Anyway?"] = 14145 }, -- Tylos Dawnrunner
     [35094] = { ["Get Kraken!"] = 14108, ["The Fate Of The Fallen"] = 14107 }, -- Crusader Silverdawn
+    [37172] = { ["Crushing the Crown"] = { 24638, 24645, 24647, 24648, 24649, 24650, 24651, 24652 } }, -- Detective Snap Snagglebolt
+    [38066] = { ["Crushing the Crown"] = { 24658, 24659, 24660, 24662, 24663, 24664, 24665, 24666 } }, -- Inspector Snip Snagglebolt
 }
 
 

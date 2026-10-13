@@ -254,23 +254,34 @@ local function NpcID(unit)
 end
 
 -- The quest with this title that this NPC hands out (dllocal_givers in DailiesData.lua).
+-- Entries are a quest ID, { Alliance = id, Horde = id }, or a list { id, id, ... } when the NPC
+-- has several quests with that title (then no single answer: nil, and the third value is true).
 -- Second value: whether the NPC is in that list at all.
 local function GiverQuestID(npcID, title)
 	local given = npcID and dllocal_givers and dllocal_givers[npcID]
-	if not given then return nil, false end
+	if not given then return nil, false, false end
 	local entry = title and given[title]
-	if type(entry) == "table" then entry = entry[dllocal_faction] end
-	return entry, true
+	if type(entry) == "table" then
+		if entry[1] then return nil, true, true end		-- several quests: ambiguous
+		entry = entry[dllocal_faction]
+	end
+	return entry, true, false
 end
 
--- All the quest IDs an NPC from dllocal_givers hands out to our faction
+-- All the quest IDs an NPC from dllocal_givers hands out to our faction.
+-- Second value: whether this NPC has titles shared by several of its quests.
 local function GiverQuestIDs(npcID)
-	local ids = {}
+	local ids, ambiguous = {}, false
 	for _, entry in pairs((npcID and dllocal_givers and dllocal_givers[npcID]) or {}) do
-		if type(entry) == "table" then entry = entry[dllocal_faction] end
-		if entry then ids[#ids + 1] = entry end
+		if type(entry) == "table" and entry[1] then
+			ambiguous = true
+			for _, id in ipairs(entry) do ids[#ids + 1] = id end
+		else
+			if type(entry) == "table" then entry = entry[dllocal_faction] end
+			if entry then ids[#ids + 1] = entry end
+		end
 	end
-	return ids
+	return ids, ambiguous
 end
 
 -- Titles shared by several quests in dllocal_givers (e.g. "A Worthy Weapon")
@@ -326,16 +337,19 @@ function Dailies.CurrentQuestID()
 	if id then return id end
 
 	if knownGiver then
-		-- other client languages: only consider the quests this NPC hands out
-		local candidates = GiverQuestIDs(npcID)
+		-- only consider the quests this NPC hands out; the quest log is exact
+		local candidates, ambiguous = GiverQuestIDs(npcID)
 		for _, qid in ipairs(candidates) do
 			local entry = QuestLog()[qid]
 			if entry and entry.title == title then return qid end
 		end
-		for _, qid in ipairs(candidates) do
-			if Dailies_Data.Quests[qid] and Dailies_Data.Quests[qid].Title == title then return qid end
+		-- other client languages: a quest we learned earlier, unless several of this NPC's quests share titles
+		if not ambiguous then
+			for _, qid in ipairs(candidates) do
+				if Dailies_Data.Quests[qid] and Dailies_Data.Quests[qid].Title == title then return qid end
+			end
 		end
-		return nil		-- not learned yet: recorded with its real ID once accepted
+		return nil		-- not known yet: recorded with its real ID once accepted
 	end
 
 	id = Dailies.FindQuestInLog(title)
@@ -2196,6 +2210,8 @@ function Dailies.ShowTabContent()
                                 if m.faction == nil or m.faction == dllocal_faction then 
 
 						    		if Dailies_Settings.showOnlyForKnownProfessions and dllocal_prof[km] and Dailies_Data.Toons[dllocal_charKey].Professions[dllocal_prof[km]] == nil then skipgeneric = true end
+						    		-- holiday pools: no placeholder, the addon can't tell whether the holiday is running
+						    		if dllocal_seasonal[km] then skipgeneric = true end
 						    		-- opt-in pools (Argent Tournament): only once this character has done one of them
 						    		if m.optin and not skipgeneric then
 						    			if optinDone[m.group] == nil then optinDone[m.group] = Dailies.HasDoneGroup(m.group) end
