@@ -368,6 +368,65 @@ local function TournamentShown(kq)
 	return not (dllocal_tournament and dllocal_tournament[kq]) or Dailies_Settings.showTournamentDailies ~= false
 end
 
+-- Open the Dailies panel of the interface options
+function Dailies.OpenOptions()
+	InterfaceOptionsFrame_Show()
+	-- called twice: the first call doesn't always scroll to the panel on 3.3.5
+	InterfaceOptionsFrame_OpenToCategory("Dailies")
+	InterfaceOptionsFrame_OpenToCategory("Dailies")
+end
+
+-- Which expansion a daily belongs to: 2 = The Burning Crusade, 3 = Wrath of the Lich King
+function Dailies.QuestExpac(kq)
+	if kq > 12000 or kq == 11153 or kq == 11472 or kq == 11940 or kq == 11960 or kq == 11945 or kq == 11391 then return 3 end
+	return 2
+end
+
+local function ExpacShown(expac)
+	return (Dailies_Settings.showTBCDailies and expac == 2) or (Dailies_Settings.showWotLKDailies and expac == 3)
+end
+
+-- Reputations given by the dailies being shown (expansions, Argent Tournament option, own faction).
+-- From upstream: the reputation filter only lists these.
+local function ShownReputations()
+	local shown = {}
+	for qid, reps in pairs(dllocal_reps or {}) do
+		if type(reps) == "table" and ExpacShown(Dailies.QuestExpac(qid)) and TournamentShown(qid) then
+			for kr in pairs(reps) do
+				if dllocal_repicons[kr] and (dllocal_repfaction[kr] == nil or dllocal_repfaction[kr] == dllocal_faction) then
+					shown[kr] = true
+				end
+			end
+		end
+	end
+	return shown
+end
+
+local dllocal_repFilterList = nil	-- factions in the filter, to rebuild it only when they change
+function Dailies.FillRepFilter()
+	if not dllocal_filter_frame then return end
+	local shown = ShownReputations()
+	local ids = {}
+	for kr in pairs(shown) do ids[#ids + 1] = kr end
+	table.sort(ids)
+	local signature = table.concat(ids, ",")
+	if signature == dllocal_repFilterList then return end
+	dllocal_repFilterList = signature
+
+	local function FactionName(id) return GetFactionInfoByID(id) or ("Faction " .. id) end
+	table.sort(ids, function(a, b) return FactionName(a) < FactionName(b) end)
+	-- this AceGUI version only adds items once a list exists
+	dllocal_filter_frame:SetList({})
+	dllocal_filter_frame:AddItem(0, "|TInterface\\AddOns\\Dailies\\Images\\ignored:16|t No reputation filter")
+	for _, kr in ipairs(ids) do
+		dllocal_filter_frame:AddItem(kr, "|T" .. dllocal_repicons[kr] .. ":16|t " .. FactionName(kr))
+	end
+	-- a filter on a reputation that's no longer listed is dropped
+	local toon = Dailies_Data.Toons[dllocal_charKey]
+	if toon.RepFilter ~= nil and not shown[toon.RepFilter] then toon.RepFilter = nil end
+	dllocal_filter_frame:SetValue(toon.RepFilter or 0)
+end
+
 -- Has this character ever done (or picked up) a quest from this pool?
 function Dailies.HasDoneGroup(groupName)
 	local quests = Dailies_Data.Toons[dllocal_charKey].Quests
@@ -560,6 +619,149 @@ function Dailies.SanitizeSavedData()
 	if type(Dailies_Settings.minimapButtonPosition) ~= "table" then Dailies_Settings.minimapButtonPosition = {} end
 end
 
+-- Can this character get a daily at all? (dllocal_requires, taken from AzerothCore)
+-- Handed-in quests come from the server (QueryQuestsCompleted), which only lists
+-- non-repeatable quests: that's all the requirements use.
+local dllocal_questsDone = nil			-- [questID] = true, nil until known
+local dllocal_requiredQuests = nil		-- every quest a requirement looks at
+local dllocal_questQueryTimer = nil
+local CLASS_BITS = { WARRIOR = 1, PALADIN = 2, HUNTER = 4, ROGUE = 8, PRIEST = 16, DEATHKNIGHT = 32,
+	SHAMAN = 64, MAGE = 128, WARLOCK = 256, DRUID = 1024 }
+
+local function HasBit(mask, bitValue) return math.floor(mask / bitValue) % 2 == 1 end
+
+local function RequiredQuests()
+	if not dllocal_requiredQuests then
+		dllocal_requiredQuests = {}
+		for _, alts in pairs(dllocal_requires or {}) do
+			for _, alt in ipairs(alts) do
+				for _, id in ipairs(alt.done or {}) do dllocal_requiredQuests[id] = true end
+				for _, id in ipairs(alt.notDone or {}) do dllocal_requiredQuests[id] = true end
+			end
+		end
+	end
+	return dllocal_requiredQuests
+end
+
+-- true / false, or nil when the client can't tell (yet)
+local function QuestDone(id)
+	if not dllocal_questsDone then return nil end
+	return dllocal_questsDone[id] and true or false
+end
+
+local function Reputation(faction)
+	local name, _, standing, _, _, value = GetFactionInfoByID(faction)
+	if not name then return nil end
+	return value, standing
+end
+
+local function AchievementDone(id)
+	if not GetAchievementInfo then return nil end
+	local found, _, _, completed = GetAchievementInfo(id)
+	if not found then return nil end
+	return completed and true or false
+end
+
+-- one alternative: every check must pass. nil if something can't be checked yet.
+local function MeetsAlternative(alt)
+	local unknown = false
+	local function result(ok)
+		if ok == false then return false end
+		if ok == nil then unknown = true end
+		return true
+	end
+	for _, id in ipairs(alt.done or {}) do if not result(QuestDone(id)) then return false end end
+	for _, id in ipairs(alt.notDone or {}) do
+		local done = QuestDone(id)
+		if done ~= nil then done = not done end
+		if not result(done) then return false end
+	end
+	for _, id in ipairs(alt.active or {}) do if not result(QuestLog()[id] ~= nil) then return false end end
+	for _, id in ipairs(alt.notActive or {}) do if not result(QuestLog()[id] == nil) then return false end end
+	for _, id in ipairs(alt.ach or {}) do if not result(AchievementDone(id)) then return false end end
+	for _, r in ipairs(alt.minRep or {}) do
+		local value = Reputation(r[1])
+		if not result(value and value >= r[2]) then return false end
+	end
+	for _, r in ipairs(alt.maxRep or {}) do
+		local value = Reputation(r[1])
+		if not result(value and value < r[2]) then return false end
+	end
+	for _, r in ipairs(alt.rank or {}) do
+		local _, standing = Reputation(r[1])
+		if not result(standing and HasBit(r[2], 2 ^ (standing - 1))) then return false end
+	end
+	if alt.class then
+		local classBit = UnitClass and CLASS_BITS[select(2, UnitClass("player")) or ""]
+		if not result(classBit and HasBit(alt.class, classBit)) then return false end
+	end
+	if unknown then return nil end
+	return true
+end
+
+-- false only when the character certainly can't get the quest (not yet, or not any more)
+function Dailies.CanGetQuest(kq)
+	local alts = dllocal_requires and dllocal_requires[kq]
+	if not alts then return true end
+	local unknown = false
+	for _, alt in ipairs(alts) do
+		local ok = MeetsAlternative(alt)
+		if ok then return true end
+		if ok == nil then unknown = true end
+	end
+	if unknown then return nil end
+	return false
+end
+
+-- can this character get any quest of this pool?
+function Dailies.CanGetPool(groupName)
+	for qid, g in pairs(dllocal_group) do
+		if g.group == groupName and (g.faction == nil or g.faction == dllocal_faction) and Dailies.CanGetQuest(qid) ~= false then
+			return true
+		end
+	end
+	return false
+end
+
+-- ask the server which quests this character has handed in (debounced)
+function Dailies.QueryQuestsDone(delay)
+	if not QueryQuestsCompleted then return end
+	if dllocal_questQueryTimer then dllocal_questQueryTimer:Cancel() end
+	dllocal_questQueryTimer = Timer.NewTimer(delay or 0, function()
+		dllocal_questQueryTimer = nil
+		QueryQuestsCompleted()
+	end)
+end
+
+function Dailies:QUEST_QUERY_COMPLETE()
+	if not GetQuestsCompleted then return end
+	local all = {}
+	GetQuestsCompleted(all)
+	-- keep only the quests the requirements look at (also saved, for the next login)
+	local done = {}
+	for id in pairs(RequiredQuests()) do
+		if all[id] then done[id] = true end
+	end
+	dllocal_questsDone = done
+	local toon = Dailies_Data and Dailies_Data.Toons and Dailies_Data.Toons[dllocal_charKey]
+	if toon then
+		toon.QuestsDone = {}
+		for id in pairs(done) do toon.QuestsDone[id] = 1 end
+	end
+	Dailies.ScheduleRefresh(0.2)
+end
+
+-- what the server said last time, until it answers this session
+function Dailies.LoadQuestsDone()
+	local toon = Dailies_Data and Dailies_Data.Toons and Dailies_Data.Toons[dllocal_charKey]
+	if dllocal_questsDone == nil and toon and type(toon.QuestsDone) == "table" then
+		dllocal_questsDone = {}
+		for id in pairs(toon.QuestsDone) do
+			if type(id) == "number" then dllocal_questsDone[id] = true end
+		end
+	end
+end
+
 -- Daily completion tracking.
 -- On 3.3.5 servers daily quests never appear in the "completed quests" list
 -- (GetQuestsCompleted), so the addon keeps its own record: a daily counts as
@@ -610,6 +812,7 @@ end
 -- Every hand-in goes through GetQuestReward(). Count the quest once it has
 -- actually left the log (a hand-in can be refused, e.g. with full bags).
 hooksecurefunc("GetQuestReward", function()
+	Dailies.QueryQuestsDone(2)		-- may unlock (or end) some dailies
 	local id = dllocal_turnIn
 	dllocal_turnIn = nil
 	if not id or not Dailies_Data or not Dailies_Data.Quests or not Dailies_Data.Quests[id] then return end
@@ -632,6 +835,7 @@ function Dailies.ScheduleRefresh(delay)
 	dllocal_refreshTimer = Timer.NewTimer(delay or 1, function()
 		dllocal_refreshTimer = nil
 		if dllocal_frame and dllocal_frame:IsVisible() then
+			Dailies.FillRepFilter()			-- the options may have changed which reputations are shown
 			Dailies.ShowTabContent()		-- re-classifies as well
 		else
 			Dailies.ClassifyQuests()
@@ -702,10 +906,9 @@ local dllocal_options = {
     handler = Dailies,
     type = "group",
     args = {
-		spacer10 = {
-			type = "description",
-			name = " ",
-			width = "full",
+		header10 = {
+			type = "header",
+			name = "General",
 			order = 10,
 		},
 		showMinimapButton = {
@@ -721,10 +924,9 @@ local dllocal_options = {
 			width = "full",
 			order = 20,
 		},		
-		spacer20 = {
-			type = "description",
-			name = " ",
-			width = "full",
+		header20 = {
+			type = "header",
+			name = "Guild and Server",
 			order = 30,
 		},
 		runScanOnLogin = {
@@ -766,10 +968,9 @@ local dllocal_options = {
 			width = "full",
 			order = 60,
 		},
-		spacer30 = {
-			type = "description",
-			name = " ",
-			width = "full",
+		header30 = {
+			type = "header",
+			name = "Display",
 			order = 70,
 		},
 		showReceivedDailies = {
@@ -817,10 +1018,9 @@ local dllocal_options = {
 			width = "full",
 			order = 105,
 		},
-		spacer40 = {
-			type = "description",
-			name = " ",
-			width = "full",
+		header40 = {
+			type = "header",
+			name = "Automation",
 			order = 110,
 		},
 		autoAcceptQuests = {
@@ -841,10 +1041,9 @@ local dllocal_options = {
 			width = "full",
 			order = 130,
 		},
-		spacer50 = {
-			type = "description",
-			name = " ",
-			width = "full",
+		header50 = {
+			type = "header",
+			name = "Categories",
 			order = 140,
 		},
 		showTBCDailies = {
@@ -912,10 +1111,9 @@ local dllocal_options = {
 			width = "full",
 			order = 185,
 		},
-		spacer4 = {
-			type = "description",
-			name = " \n \n \n ",
-			width = "full",
+		header4 = {
+			type = "header",
+			name = "Support",
 			order = 190,
 		},
 		credits = {
@@ -1010,6 +1208,7 @@ function Dailies:OnEnable()
 	self:RegisterEvent("QUEST_PROGRESS")				--  used to trigger auto-complete (step 1)
 	self:RegisterEvent("GOSSIP_SHOW")					--  used to trigger auto-complete and auto-accept
 	self:RegisterEvent("QUEST_GREETING")				--  same, for quest givers that use the quest greeting window instead of gossip
+	self:RegisterEvent("QUEST_QUERY_COMPLETE")			--  the server's list of quests this character has handed in
 	-- Guild info is often not ready yet at login on 3.3.5, so always listen for it
 	self:RegisterEvent("GUILD_ROSTER_UPDATE")
 	self:RegisterEvent("PLAYER_GUILD_UPDATE")
@@ -1106,6 +1305,10 @@ function Dailies:OnEnable()
 	-- find out what professions this toon has, as some quests are prof specific
 	Dailies_Data.Toons[dllocal_charKey].Professions = ScanProfessions() -- rebuilt each login, to keep up to date
 
+	-- quests handed in, for the daily requirements: last known list now, the server's in a moment
+	Dailies.LoadQuestsDone()
+	Dailies.QueryQuestsDone(5)
+
 
 	-- detect any daily quest that the player might already have in their log
 	Dailies.RegisterDailiesInLog(false)
@@ -1135,10 +1338,7 @@ function Dailies:OnEnable()
 			if button=="LeftButton" then
 				dllocal_frame = Dailies.getFrame()
 			elseif button=="RightButton" then
-				InterfaceOptionsFrame_Show()
-				-- called twice: the first call doesn't always scroll to the panel on 3.3.5
-				InterfaceOptionsFrame_OpenToCategory("Dailies")
-				InterfaceOptionsFrame_OpenToCategory("Dailies")
+				Dailies.OpenOptions()
 			end
 		end,
 		OnTooltipShow = function(tooltip)
@@ -1510,6 +1710,31 @@ function Dailies.getFrame()
 	statusbg:SetPoint("BOTTOMRIGHT", -398, 14)  -- taken from AceGUIContainer-Frame.lua, modified from -132
 	closebutton:SetWidth(80)
 
+	-- SETTINGS BUTTON (from upstream): a gear in the top right corner that opens the options
+	local settingsbutton = CreateFrame("Button", "Dailies_SettingsButton", dllocal_frame.content.obj.frame)
+	settingsbutton:SetPoint("TOPRIGHT", dllocal_frame.content.obj.frame, "TOPRIGHT", -18, -13)
+	settingsbutton:SetFrameStrata("DIALOG")
+	settingsbutton:SetWidth(20)
+	settingsbutton:SetHeight(20)
+	settingsbutton:SetNormalTexture("Interface\\Icons\\INV_Misc_Gear_01")
+	settingsbutton:SetHighlightTexture("Interface\\Buttons\\ButtonHilight-Square", "ADD")
+	settingsbutton:SetScript("OnEnter", function(self)
+		dllocal_frame:SetStatusText("Open the Dailies options.")
+		GameTooltip:SetOwner(self, "ANCHOR_TOPRIGHT")
+		GameTooltip:SetText("Options")
+		GameTooltip:Show()
+	end)
+	settingsbutton:SetScript("OnLeave", function()
+		dllocal_frame:SetStatusText(dllocal_statusText)
+		GameTooltip:Hide()
+	end)
+	settingsbutton:SetScript("OnClick", function()
+		-- close the list first: it would sit on top of the options window
+		dllocal_filter_frame.frame:Hide()
+		dllocal_frame:Hide()
+		Dailies.OpenOptions()
+	end)
+
 
 	-- Tabs 
 	dllocal_tabgroup = AceGUI:Create("TabGroup")
@@ -1552,16 +1777,7 @@ function Dailies.getFrame()
 	dllocal_filter_frame:SetWidth(200)
 	dllocal_filter_frame.frame:SetFrameStrata("DIALOG")
 	dllocal_filter_frame:SetPoint("TOPRIGHT", scanbutton,"TOPLEFT", -5, 2)
-	-- this AceGUI version only adds items once a list exists
-	dllocal_filter_frame:SetList({})
-	dllocal_filter_frame:AddItem(0, "|TInterface\\AddOns\\Dailies\\Images\\ignored:16|t No reputation filter")
-	if dllocal_repicons then
-		local function FactionName(id) return GetFactionInfoByID(id) or ("Faction " .. id) end
-		for kr, r in Dailies.spairs(dllocal_repicons, function(t,a,b)
-			return FactionName(a) < FactionName(b) end) do --sorted reps
-			dllocal_filter_frame:AddItem(kr, "|T" .. r .. ":16|t " .. FactionName(kr))
-		end
-	end
+	Dailies.FillRepFilter()
 	dllocal_filter_frame:SetCallback("OnValueChanged", function(widget, event, value)
 		if value == nil or value == 0 then Dailies_Data.Toons[dllocal_charKey].RepFilter = nil
 		else Dailies_Data.Toons[dllocal_charKey].RepFilter = value
@@ -1994,6 +2210,13 @@ local function BuildTabContent()
 							end
 						end
 
+						-- a quest this character can't get (yet, or any more)
+						if not alreadyHaveIt and not completed and Dailies.CanGetQuest(kq) == false then
+							status = "|TInterface\\AddOns\\Dailies\\Images\\nottoday:16|t"
+							tit = "|cff808080" .. q.Title .. "|r"
+							desc = "This character can't get this quest at the moment.\nIt needs an earlier quest, reputation, achievement or class it doesn't have\n(or it's moved past it, like a Valiant who has become a Champion)."
+						end
+
 						if completed then status = "|TInterface\\AddOns\\Dailies\\Images\\completed:16|t"; desc = "You have completed this quest today" end 
 						if Dailies_Data.Toons[dllocal_charKey].Quests[kq].Ignored then status = "|TInterface\\AddOns\\Dailies\\Images\\ignored:16|t"; desc = "You are ignoring this quest" end 
 
@@ -2329,6 +2552,8 @@ local function BuildTabContent()
 						    		if Dailies_Settings.showOnlyForKnownProfessions and dllocal_prof[km] and Dailies_Data.Toons[dllocal_charKey].Professions[dllocal_prof[km]] == nil then skipgeneric = true end
 						    		-- holiday pools: no placeholder, the addon can't tell whether the holiday is running
 						    		if dllocal_seasonal[km] then skipgeneric = true end
+						    		-- no placeholder for a pool this character can't get any quest of
+						    		if not skipgeneric and not Dailies.CanGetPool(m.group) then skipgeneric = true end
 						    		-- opt-in pools (Argent Tournament): only once this character has done one of them
 						    		if m.optin and not skipgeneric then
 						    			if optinDone[m.group] == nil then optinDone[m.group] = Dailies.HasDoneGroup(m.group) end
@@ -2608,11 +2833,7 @@ function Dailies.ClassifyQuests()
 
 	for kq, q in Dailies.spairs(Dailies_Data.Quests, function(t,a,b) 	return Dailies_Data.Toons[dllocal_charKey].Quests[a].Order < Dailies_Data.Toons[dllocal_charKey].Quests[b].Order end) do --all dailies
 
-		-- super dirty way to handle quest expac
-		local expac = 2
-		if kq > 12000 	or kq == 11153		or kq == 11472		or kq == 11940		or kq == 11960		or kq == 11945		or kq == 11391		then expac = 3 end
-
-		if (Dailies_Settings.showTBCDailies and expac == 2) or (Dailies_Settings.showWotLKDailies and expac == 3) then 
+		if ExpacShown(Dailies.QuestExpac(kq)) then 
 
 			if (dllocal_seasonal[kq] == nil or (Dailies_Settings.showSeasonalDailies and dllocal_seasonal[kq] ~= nil)) and TournamentShown(kq) then 
 
@@ -2693,6 +2914,9 @@ function Dailies.ClassifyQuests()
 
 							-- professions
 							if Dailies_Settings.showOnlyForKnownProfessions and dllocal_prof[kq] and Dailies_Data.Toons[dllocal_charKey].Professions[dllocal_prof[kq]] == nil then skip = true end
+
+							-- quests this character can't get (yet, or any more): see dllocal_requires
+							if not completed and not alreadyHaveIt and Dailies.CanGetQuest(kq) == false then skip = true end
 
 							-- add to listed groups to avoid the generic group line
 							if dllocal_group[kq] and listedGroups[dllocal_group[kq].group] == nil then listedGroups[dllocal_group[kq].group] = true end

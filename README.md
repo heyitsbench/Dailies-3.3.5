@@ -12,6 +12,7 @@ This is a port of [Dailies](https://addons.wago.io/addons/dailies) by Cixi/Gaya 
 - **Random daily pools** (heroic and normal dungeon, cooking, fishing, Argent Tournament...): until today's quest is known, the To Do list shows an "Unknown ... Daily" line for the pool. Once it's known, the pool's other quests are greyed out.
 - **Guild sharing:** at login (or with the Scan button) Dailies asks guildmates for today's dailies.
 - **Reputation and gold:** each quest shows its reputation rewards. A summary line adds up the gold and reputation still to earn, and you can filter the list by reputation.
+- **Only what you can get:** dailies a character can't pick up yet, or any more, are left off the To Do list. Examples are an Argent Tournament stage you haven't reached or have moved past, Sons of Hodir dailies above your reputation, and the Death Knight versions of quests. The rules come from AzerothCore's quest requirements.
 - **Ignore list** for dailies you never do.
 - **Auto-accept and auto-complete** for quests on your To Do list (both off by default).
 - **Quest information panel:** quest giver, zone, times completed and your fastest completion. If you use the Attune addon, the panel links to the matching attunement.
@@ -31,7 +32,7 @@ To update, delete the old `Dailies` folder and repeat the steps. Your saved data
 
 ## Using it
 
-Open the window with `/dailies` or the minimap button. Right-click the minimap button for the options.
+Open the window with `/dailies` or the minimap button. The gear in the window's top right corner, or a right-click on the minimap button, opens the options.
 
 | Tab | Shows |
 |---|---|
@@ -50,7 +51,7 @@ The icon in front of each quest tells you where you stand:
 - **Green tick:** done today.
 - **Red X:** on your Ignored list.
 
-The red X at the end of each row moves a quest to the Ignored list, and the green tick in its place takes it off again. Click a quest's name to see its details in the panel below the list.
+On the All Dailies tab, a greyed-out quest with a grey exclamation mark is one this character can't get at the moment (hover over it for why). The red X at the end of each row moves a quest to the Ignored list, and the green tick in its place takes it off again. Click a quest's name to see its details in the panel below the list.
 
 ### Commands
 

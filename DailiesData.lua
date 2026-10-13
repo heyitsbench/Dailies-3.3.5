@@ -684,6 +684,9 @@ dllocal_temp = {
 }
 
 
+-- Reputation each daily awards, as AzerothCore gives it: RewardFactionValue index
+-- (1 = 10, 2 = 25, 3 = 75, 4 = 150, 5 = 250, 6 = 350, 7 = 500, 8 = 1000) or RewardFactionOverride / 100.
+-- Where upstream Dailies (v44, for the Classic clients) has a different amount, the line says so.
 dllocal_reps = {
     [11008] = { [1031] = 350 },
     [11023] = { [1031] = 500, [1038] = 500 },
@@ -704,7 +707,7 @@ dllocal_reps = {
     [11097] = { [1015] = 500 },
     [11101] = { [1015] = 500 },
 
-    [11085] = { [1031] = 150 },
+    [11085] = { [1031] = 150 },                                -- Escape from Skettis. Upstream v44: 350. AzerothCore: RewardFactionValue1 = 4 (150)
     [11354] = { [933]  = 350, [946]  = 350, [947] = 350 },
     [11362] = { [933]  = 350, [946]  = 350, [947] = 350 },
     [11363] = { [933]  = 350, [946]  = 350, [947] = 350 },
@@ -727,7 +730,7 @@ dllocal_reps = {
     [11387] = { [933]  = 250, [935]  = 250 },
     [11388] = { [933]  = 350, [935]  = 350 },
     [11389] = { [933]  = 250, [935]  = 250 },
-    [11499] = { [933]  = 350, [1077] = 350 },
+    [11499] = { [933]  = 350, [1077] = 350 },                  -- Wanted: The Signet Ring of Prince Kael'thas. Upstream v44: 250 each. AzerothCore: RewardFactionValue1/2 = 6 (350 each)
     [11500] = { [933]  = 250, [1077] = 250 },
 
     --SSO
@@ -769,14 +772,14 @@ dllocal_reps = {
     [11877] = { [1077] = 250 },
 
     -- WOTLK Kaluak
-    [11945] = { [1073] = 250 },
-    [11472] = { [1073] = 250 },
-    [11960] = { [1073] = 250 },
+    [11945] = { [1073] = 250 },                                -- Preparing for the Worst. Upstream v44: 500. AzerothCore: RewardFactionValue1 = 5 (250)
+    [11472] = { [1073] = 250 },                                -- The Way to His Heart... Upstream v44: 500. AzerothCore: RewardFactionValue1 = 5 (250)
+    [11960] = { [1073] = 250 },                                -- Planning for the Future. Upstream v44: 500. AzerothCore: RewardFactionValue1 = 5 (250)
 
     -- WOTLK Sons of Hodir
     [12981] = { [1119] = 350 },
     [12977] = { [1119] = 350 },
-    [13006] = { [1119] = 455 },
+    [13006] = { [1119] = 455 },                                -- Polishing the Helm. Upstream v44: 350. AzerothCore: RewardFactionOverride1 = 45500 (455)
     [12994] = { [1119] = 350 },
     [13003] = { [1119] = 500 },
     [13046] = { [1119] = 350 },
@@ -1854,4 +1857,248 @@ dllocal_ProfessionNames = {
         [755] = "보석세공",
         [773] = "주문각인",
     },
+}
+
+-- What a character needs before the server offers a daily, taken from AzerothCore
+-- (quest_template_addon: previous quests, classes, reputation; conditions: quests
+-- handed in or in the log, achievements, reputation rank). Merged from the idea of
+-- upstream's dllocal_require, which only covered part of the Argent Tournament.
+-- [questID] = list of alternatives: a character can get the quest if it meets every
+-- check of at least one of them.
+--   done / notDone       quests handed in / not handed in (not repeatable ones)
+--   active / notActive   quests in / not in the quest log
+--   ach                  achievements earned
+--   minRep / maxRep      { faction, reputation value }  (Friendly 3000, Honored 9000, Revered 21000)
+--   rank                 { faction, mask of allowed ranks }  (bit 0 Hated ... bit 7 Exalted)
+--   class                mask of allowed classes (bit 0 Warrior ... bit 5 Death Knight ... bit 10 Druid)
+-- Checks the 3.3.5 client can't see (auras, repeatable or holiday quests) are left out,
+-- so a quest is only ever hidden when the character really can't get it.
+dllocal_requires = {
+	[10106] = { { done = {13408}, minRep = {{946, 0}} }, { done = {13410}, minRep = {{946, 0}} } },	-- Hellfire Fortifications
+	[10110] = { { done = {13409}, minRep = {{947, 0}} }, { done = {13411}, minRep = {{947, 0}} } },	-- Hellfire Fortifications
+	[11008] = { { done = {11098} } },	-- Fires Over Skettis
+	[11015] = { { done = {11014}, minRep = {{1015, 0}} } },	-- Netherwing Crystals
+	[11016] = { { done = {11014}, minRep = {{1015, 0}} } },	-- Nethermine Flayer Hide
+	[11017] = { { done = {11014}, minRep = {{1015, 0}} } },	-- Netherdust Pollen
+	[11018] = { { done = {11014}, minRep = {{1015, 0}} } },	-- Nethercite Ore
+	[11020] = { { done = {11019}, minRep = {{1015, 0}} } },	-- A Slow Death
+	[11035] = { { done = {11019}, minRep = {{1015, 0}} } },	-- The Not-So-Friendly Skies...
+	[11023] = { { done = {11010} }, { done = {11102} } },	-- Bomb Them Again!
+	[11051] = { { done = {11026} } },	-- Banish More Demons
+	[11055] = { { done = {11054}, minRep = {{1015, 3000}} } },	-- The Booterang: A Cure For The Common Worthless Peon
+	[11066] = { { done = {11065} } },	-- Wrangle More Aether Rays!
+	[11076] = { { done = {11075}, minRep = {{1015, 3000}} } },	-- Picking Up The Pieces...
+	[11077] = { { done = {11075}, minRep = {{1015, 3000}} } },	-- Dragons are the Least of Our Problems
+	[11080] = { { done = {11058} } },	-- The Relic's Emanation
+	[11086] = { { done = {11084}, minRep = {{1015, 9000}} } },	-- Disrupting the Twilight Portal
+	[11097] = { { done = {11095}, minRep = {{934, 1}} } },	-- The Deadliest Trap Ever Laid
+	[11101] = { { done = {11100}, minRep = {{932, 1}} } },	-- The Deadliest Trap Ever Laid
+	[11391] = { { done = {11390} } },	-- Steel Gate Patrol
+	[11472] = { { done = {11469} } },	-- The Way to His Heart...
+	[11499] = { { done = {11492} } },	-- Wanted: The Signet Ring of Prince Kael'thas
+	[11513] = { { done = {11517} } },	-- Intercepting the Mana Cells
+	[11514] = { { done = {11534} } },	-- Maintaining the Sunwell Portal
+	[11515] = { { done = {11526} } },	-- Blood for Blood
+	[11516] = { { done = {11526} } },	-- Blast the Gateway
+	[11548] = { { maxRep = {{1077, 42000}} } },	-- Your Continued Support
+	[11875] = { { done = {11550} } },	-- Gaining the Advantage
+	[11877] = { { done = {11550} } },	-- Sunfury Attack Plans
+	[11940] = { { done = {11919} } },	-- Drake Hunt
+	[12372] = { { done = {12435} } },	-- Defending Wyrmrest Temple
+	[12501] = { { done = {12596} } },	-- Troll Patrol
+	[12541] = { { done = {12596} } },	-- Troll Patrol: The Alchemist's Apprentice
+	[12563] = { { done = {12596} } },	-- Troll Patrol
+	[12587] = { { done = {12596} } },	-- Troll Patrol
+	[12502] = { { active = {12501} } },	-- Troll Patrol: High Standards
+	[12519] = { { active = {12501} } },	-- Troll Patrol: Whatdya Want, a Medal?
+	[12564] = { { active = {12563} } },	-- Troll Patrol: Something for the Pain
+	[12568] = { { active = {12563} } },	-- Troll Patrol: Done to Death
+	[12585] = { { active = {12563} } },	-- Troll Patrol: Creature Comforts
+	[12588] = { { active = {12587} } },	-- Troll Patrol: Can You Dig It?
+	[12591] = { { active = {12587} } },	-- Troll Patrol: Throwing Down
+	[12594] = { { active = {12587} } },	-- Troll Patrol: Couldn't Care Less
+	[12702] = { { done = {12692} } },	-- Chicken Party!
+	[12703] = { { done = {12692} } },	-- Kartak's Rampage
+	[12732] = { { done = {12692} } },	-- The Heartblood's Strength
+	[12734] = { { done = {12692} } },	-- Rejek: First Blood
+	[12741] = { { done = {12692} } },	-- Strength of the Tempest
+	[12758] = { { done = {12692} } },	-- A Hero's Headgear
+	[12759] = { { done = {12692} } },	-- Tools of War
+	[12760] = { { done = {12692} } },	-- Secret Strength of the Frenzyheart
+	[12704] = { { done = {12695} } },	-- Appeasing the Great Rain Stone
+	[12705] = { { done = {12695} } },	-- Will of the Titans
+	[12726] = { { done = {12695} } },	-- Song of Wind and Water
+	[12735] = { { done = {12695} } },	-- A Cleansing Song
+	[12736] = { { done = {12695} } },	-- Song of Reflection
+	[12737] = { { done = {12695} } },	-- Song of Fecundity
+	[12761] = { { done = {12695} } },	-- Mastery of the Crystals
+	[12762] = { { done = {12695} } },	-- Power of the Great Ones
+	[12813] = { { done = {12807} } },	-- From Their Corpses, Rise!
+	[12838] = { { done = {12807} } },	-- Intelligence Gathering
+	[12815] = { { done = {12814} } },	-- No Fly Zone
+	[12833] = { { done = {12824} } },	-- Overstock
+	[12869] = { { done = {12867} } },	-- Pushed Too Far
+	[12958] = { { done = {13041} } },	-- Shipment: Blood Jade Amulet 
+	[12959] = { { done = {13041} } },	-- Shipment: Glowing Ivory Figurine
+	[12960] = { { done = {13041} } },	-- Shipment: Wicked Sun Brooch
+	[12961] = { { done = {13041} } },	-- Shipment: Intricate Bone Figurine
+	[12962] = { { done = {13041} } },	-- Shipment: Bright Armor Relic
+	[12963] = { { done = {13041} } },	-- Shipment: Shifting Sun Curio 
+	[12977] = { { done = {12976}, minRep = {{1119, 0}} } },	-- Blowing Hodir's Horn
+	[12981] = { { done = {12967}, minRep = {{1119, 0}} } },	-- Hot and Cold
+	[12994] = { { minRep = {{1119, 9000}} } },	-- Spy Hunter
+	[12995] = { { done = {13084} } },	-- Leave Our Mark
+	[13003] = { { done = {13001}, minRep = {{1119, 9000}} } },	-- Thrusting Hodir's Spear
+	[13006] = { { done = {12987}, minRep = {{1119, 3000}} } },	-- Polishing the Helm
+	[13046] = { { minRep = {{1119, 21000}} } },	-- Feeding Arngrim
+	[13071] = { { done = {12992} } },	-- Vile Like Fire!
+	[13233] = { { done = {13231} } },	-- No Mercy!
+	[13234] = { { done = {13228} } },	-- Make Them Pay!
+	[13261] = { { done = {13329} } },	-- Volatility
+	[13276] = { { done = {13264} } },	-- That's Abominable!
+	[13280] = { { done = {13296} } },	-- King of the Mountain
+	[13281] = { { done = {13279} } },	-- Neutralizing the Plague
+	[13283] = { { done = {13293} } },	-- King of the Mountain
+	[13284] = { { done = {13341} } },	-- Assault by Ground
+	[13309] = { { done = {13341} } },	-- Assault by Air
+	[13289] = { { done = {13288} } },	-- That's Abominable!
+	[13292] = { { done = {13291} } },	-- The Solution Solution
+	[13297] = { { done = {13295} } },	-- Neutralizing the Plague
+	[13300] = { { done = {13225} } },	-- Slaves to Saronite
+	[13336] = { { done = {13225} } },	-- Blood of the Chosen
+	[13301] = { { done = {13340} } },	-- Assault by Ground
+	[13310] = { { done = {13340} } },	-- Assault by Air
+	[13302] = { { done = {13224} } },	-- Slaves to Saronite
+	[13330] = { { done = {13224} } },	-- Blood of the Chosen
+	[13323] = { { done = {13318} } },	-- Drag and Drop
+	[13331] = { { done = {13313} } },	-- Keeping the Alliance Blind
+	[13333] = { { done = {13314} } },	-- Capture More Dispatches
+	[13344] = { { done = {13342} } },	-- Not a Bug
+	[13350] = { { done = {13346} } },	-- No Rest For The Wicked
+	[13353] = { { done = {13352} } },	-- Drag and Drop
+	[13365] = { { done = {13358} } },	-- Not a Bug
+	[13368] = { { done = {13367} } },	-- No Rest For The Wicked
+	[13376] = { { done = {13373} } },	-- Total Ohmage: The Valley of Lost Hope!
+	[13406] = { { done = {13373} } },	-- Riding the Wavelength: The Bombardment
+	[13382] = { { done = {13380} } },	-- Putting the Hertz: The Valley of Lost Hope
+	[13404] = { { done = {13380} } },	-- Static Shock Troops: the Bombardment
+	[13414] = { { done = {13413} } },	-- Aces High!
+	[13425] = { { done = {12925} } },	-- The Aberrations Must Die
+	[13592] = { { done = {13593}, notDone = {13718} }, { done = {13684}, notDone = {13718} } },	-- A Valiant's Field Training
+	[13600] = { { done = {13593}, notDone = {13718} }, { done = {13684}, notDone = {13718} } },	-- A Worthy Weapon
+	[13603] = { { done = {13593}, notDone = {13718} }, { done = {13684}, notDone = {13718} } },	-- A Blade Fit For A Champion
+	[13616] = { { done = {13593}, notDone = {13718} }, { done = {13684}, notDone = {13718} } },	-- The Edge Of Winter
+	[13665] = { { done = {13593}, notDone = {13718} }, { done = {13684}, notDone = {13718} } },	-- The Grand Melee
+	[13847] = { { done = {13593}, notDone = {13718} }, { done = {13684}, notDone = {13718} } },	-- At The Enemy's Gates
+	[13625] = { { done = {13828, 13835, 13837}, notDone = {13672} } },	-- Learning The Reins
+	[13666] = { { done = {13828, 13835, 13837}, notDone = {13672} } },	-- A Blade Fit For A Champion
+	[13669] = { { done = {13828, 13835, 13837}, notDone = {13672} } },	-- A Worthy Weapon
+	[13670] = { { done = {13828, 13835, 13837}, notDone = {13672} } },	-- The Edge Of Winter
+	[13671] = { { done = {13828, 13835, 13837}, notDone = {13672} } },	-- Training In The Field
+	[13673] = { { done = {13829, 13838, 13839}, notDone = {13678} } },	-- A Blade Fit For A Champion
+	[13674] = { { done = {13829, 13838, 13839}, notDone = {13678} } },	-- A Worthy Weapon
+	[13675] = { { done = {13829, 13838, 13839}, notDone = {13678} } },	-- The Edge Of Winter
+	[13676] = { { done = {13829, 13838, 13839}, notDone = {13678} } },	-- Training In The Field
+	[13677] = { { done = {13829, 13838, 13839}, notDone = {13678} } },	-- Learning The Reins
+	[13682] = { { done = {13794}, class = 1503 } },	-- Threat From Above
+	[13789] = { { done = {13794}, class = 1503 } },	-- Taking Battle To The Enemy
+	[13790] = { { done = {13794}, class = 1503 } },	-- Among the Champions
+	[13809] = { { done = {13794}, class = 1503 } },	-- Threat From Above
+	[13810] = { { done = {13794}, class = 1503 } },	-- Taking Battle To The Enemy
+	[13811] = { { done = {13794}, class = 1503 } },	-- Among the Champions
+	[13861] = { { done = {13794}, class = 1503 } },	-- Battle Before The Citadel
+	[13862] = { { done = {13794}, class = 1503 } },	-- Battle Before The Citadel
+	[13741] = { { done = {13703}, notDone = {13714} }, { done = {13685}, notDone = {13714} } },	-- A Blade Fit For A Champion
+	[13742] = { { done = {13703}, notDone = {13714} }, { done = {13685}, notDone = {13714} } },	-- A Worthy Weapon
+	[13743] = { { done = {13703}, notDone = {13714} }, { done = {13685}, notDone = {13714} } },	-- The Edge Of Winter
+	[13744] = { { done = {13703}, notDone = {13714} }, { done = {13685}, notDone = {13714} } },	-- A Valiant's Field Training
+	[13745] = { { done = {13703}, notDone = {13714} }, { done = {13685}, notDone = {13714} } },	-- The Grand Melee
+	[13851] = { { done = {13703}, notDone = {13714} }, { done = {13685}, notDone = {13714} } },	-- At The Enemy's Gates
+	[13746] = { { done = {13704}, notDone = {13715} }, { done = {13688}, notDone = {13715} } },	-- A Blade Fit For A Champion
+	[13747] = { { done = {13704}, notDone = {13715} }, { done = {13688}, notDone = {13715} } },	-- A Worthy Weapon
+	[13748] = { { done = {13704}, notDone = {13715} }, { done = {13688}, notDone = {13715} } },	-- The Edge Of Winter
+	[13749] = { { done = {13704}, notDone = {13715} }, { done = {13688}, notDone = {13715} } },	-- A Valiant's Field Training
+	[13750] = { { done = {13704}, notDone = {13715} }, { done = {13688}, notDone = {13715} } },	-- The Grand Melee
+	[13852] = { { done = {13704}, notDone = {13715} }, { done = {13688}, notDone = {13715} } },	-- At The Enemy's Gates
+	[13752] = { { done = {13705}, notDone = {13716} }, { done = {13690}, notDone = {13716} } },	-- A Blade Fit For A Champion
+	[13753] = { { done = {13705}, notDone = {13716} }, { done = {13690}, notDone = {13716} } },	-- A Worthy Weapon
+	[13754] = { { done = {13705}, notDone = {13716} }, { done = {13690}, notDone = {13716} } },	-- The Edge Of Winter
+	[13755] = { { done = {13705}, notDone = {13716} }, { done = {13690}, notDone = {13716} } },	-- A Valiant's Field Training
+	[13756] = { { done = {13705}, notDone = {13716} }, { done = {13690}, notDone = {13716} } },	-- The Grand Melee
+	[13854] = { { done = {13705}, notDone = {13716} }, { done = {13690}, notDone = {13716} } },	-- At The Enemy's Gates
+	[13757] = { { done = {13706}, notDone = {13717} }, { done = {13689}, notDone = {13717} } },	-- A Blade Fit For A Champion
+	[13758] = { { done = {13706}, notDone = {13717} }, { done = {13689}, notDone = {13717} } },	-- A Worthy Weapon
+	[13759] = { { done = {13706}, notDone = {13717} }, { done = {13689}, notDone = {13717} } },	-- The Edge Of Winter
+	[13760] = { { done = {13706}, notDone = {13717} }, { done = {13689}, notDone = {13717} } },	-- A Valiant's Field Training
+	[13761] = { { done = {13706}, notDone = {13717} }, { done = {13689}, notDone = {13717} } },	-- The Grand Melee
+	[13855] = { { done = {13706}, notDone = {13717} }, { done = {13689}, notDone = {13717} } },	-- At The Enemy's Gates
+	[13762] = { { done = {13707}, notDone = {13697} }, { done = {13691}, notDone = {13697} } },	-- A Blade Fit For A Champion
+	[13763] = { { done = {13707}, notDone = {13697} }, { done = {13691}, notDone = {13697} } },	-- A Worthy Weapon
+	[13764] = { { done = {13707}, notDone = {13697} }, { done = {13691}, notDone = {13697} } },	-- The Edge Of Winter
+	[13765] = { { done = {13707}, notDone = {13697} }, { done = {13691}, notDone = {13697} } },	-- A Valiant's Field Training
+	[13767] = { { done = {13707}, notDone = {13697} }, { done = {13691}, notDone = {13697} } },	-- The Grand Melee
+	[13856] = { { done = {13707}, notDone = {13697} }, { done = {13691}, notDone = {13697} } },	-- At The Enemy's Gates
+	[13768] = { { done = {13708}, notDone = {13719} }, { done = {13693}, notDone = {13719} } },	-- A Blade Fit For A Champion
+	[13769] = { { done = {13708}, notDone = {13719} }, { done = {13693}, notDone = {13719} } },	-- A Worthy Weapon
+	[13770] = { { done = {13708}, notDone = {13719} }, { done = {13693}, notDone = {13719} } },	-- The Edge Of Winter
+	[13771] = { { done = {13708}, notDone = {13719} }, { done = {13693}, notDone = {13719} } },	-- A Valiant's Field Training
+	[13772] = { { done = {13708}, notDone = {13719} }, { done = {13693}, notDone = {13719} } },	-- The Grand Melee
+	[13857] = { { done = {13708}, notDone = {13719} }, { done = {13693}, notDone = {13719} } },	-- At The Enemy's Gates
+	[13773] = { { done = {13709}, notDone = {13720} }, { done = {13694}, notDone = {13720} } },	-- A Blade Fit For A Champion
+	[13774] = { { done = {13709}, notDone = {13720} }, { done = {13694}, notDone = {13720} } },	-- A Worthy Weapon
+	[13775] = { { done = {13709}, notDone = {13720} }, { done = {13694}, notDone = {13720} } },	-- The Edge Of Winter
+	[13776] = { { done = {13709}, notDone = {13720} }, { done = {13694}, notDone = {13720} } },	-- A Valiant's Field Training
+	[13777] = { { done = {13709}, notDone = {13720} }, { done = {13694}, notDone = {13720} } },	-- The Grand Melee
+	[13858] = { { done = {13709}, notDone = {13720} }, { done = {13694}, notDone = {13720} } },	-- At The Enemy's Gates
+	[13778] = { { done = {13710}, notDone = {13721} }, { done = {13695}, notDone = {13721} } },	-- A Blade Fit For A Champion
+	[13779] = { { done = {13710}, notDone = {13721} }, { done = {13695}, notDone = {13721} } },	-- A Worthy Weapon
+	[13780] = { { done = {13710}, notDone = {13721} }, { done = {13695}, notDone = {13721} } },	-- The Edge Of Winter
+	[13781] = { { done = {13710}, notDone = {13721} }, { done = {13695}, notDone = {13721} } },	-- A Valiant's Field Training
+	[13782] = { { done = {13710}, notDone = {13721} }, { done = {13695}, notDone = {13721} } },	-- The Grand Melee
+	[13860] = { { done = {13710}, notDone = {13721} }, { done = {13695}, notDone = {13721} } },	-- At The Enemy's Gates
+	[13783] = { { done = {13711}, notDone = {13722} }, { done = {13696}, notDone = {13722} } },	-- A Blade Fit For A Champion
+	[13784] = { { done = {13711}, notDone = {13722} }, { done = {13696}, notDone = {13722} } },	-- A Worthy Weapon
+	[13785] = { { done = {13711}, notDone = {13722} }, { done = {13696}, notDone = {13722} } },	-- The Edge Of Winter
+	[13786] = { { done = {13711}, notDone = {13722} }, { done = {13696}, notDone = {13722} } },	-- A Valiant's Field Training
+	[13787] = { { done = {13711}, notDone = {13722} }, { done = {13696}, notDone = {13722} } },	-- The Grand Melee
+	[13859] = { { done = {13711}, notDone = {13722} }, { done = {13696}, notDone = {13722} } },	-- At The Enemy's Gates
+	[13788] = { { done = {13795}, class = 32 } },	-- Threat From Above
+	[13791] = { { done = {13795}, class = 32 } },	-- Taking Battle To The Enemy
+	[13793] = { { done = {13795}, class = 32 } },	-- Among the Champions
+	[13812] = { { done = {13795}, class = 32 } },	-- Threat From Above
+	[13813] = { { done = {13795}, class = 32 } },	-- Taking Battle To The Enemy
+	[13814] = { { done = {13795}, class = 32 } },	-- Among the Champions
+	[13863] = { { done = {13795}, class = 32 } },	-- Battle Before The Citadel
+	[13864] = { { done = {13795}, class = 32 } },	-- Battle Before The Citadel
+	[13846] = { { done = {13700}, rank = {{1106, 127}} }, { done = {13701}, rank = {{1106, 127}} } },	-- Contributin' To The Cause
+	[13889] = { { active = {13906} } },	-- Hungry, Hungry Hatchling
+	[13903] = { { active = {13906} } },	-- Gorishi Grub
+	[13904] = { { active = {13906} } },	-- Poached, Scrambled, Or Raw?
+	[13905] = { { active = {13906} } },	-- Searing Roc Feathers
+	[13914] = { { active = {13906} } },	-- Searing Roc Feathers
+	[13915] = { { active = {13906} } },	-- Hungry, Hungry Hatchling
+	[13916] = { { active = {13906} } },	-- Poached, Scrambled, Or Raw?
+	[13917] = { { active = {13906} } },	-- Gorishi Grub
+	[14074] = { { ach = {3676} } },	-- A Leg Up
+	[14076] = { { ach = {3676} } },	-- Breakfast Of Champions
+	[14077] = { { ach = {3676} } },	-- The Light's Mercy
+	[14080] = { { ach = {3676} } },	-- Stop The Aggressors
+	[14090] = { { ach = {3676} } },	-- Gormok Wants His Snobolds
+	[14096] = { { ach = {3676} } },	-- You've Really Done It This Time, Kul
+	[14112] = { { ach = {3676} } },	-- What Do You Feed a Yeti, Anyway?
+	[14152] = { { ach = {3676} } },	-- Rescue at Sea
+	[14092] = { { ach = {3677} } },	-- Breakfast Of Champions
+	[14136] = { { ach = {3677} } },	-- Rescue at Sea
+	[14140] = { { ach = {3677} } },	-- Stop The Aggressors
+	[14141] = { { ach = {3677} } },	-- Gormok Wants His Snobolds
+	[14142] = { { ach = {3677} } },	-- You've Really Done It This Time, Kul
+	[14143] = { { ach = {3677} } },	-- A Leg Up
+	[14144] = { { ach = {3677} } },	-- The Light's Mercy
+	[14145] = { { ach = {3677} } },	-- What Do You Feed a Yeti, Anyway?
+	[14101] = { { ach = {2817} }, { ach = {2816} } },	-- Drottinn Hrothgar
+	[14102] = { { ach = {2817} }, { ach = {2816} } },	-- Mistcaller Yngvar
+	[14104] = { { ach = {2817} }, { ach = {2816} } },	-- Ornolf The Scarred
+	[14105] = { { ach = {2817} }, { ach = {2816} } },	-- Deathspeaker Kharos
+	[14107] = { { ach = {2817} }, { ach = {2816} } },	-- The Fate Of The Fallen
+	[14108] = { { ach = {2817} }, { ach = {2816} } },	-- Get Kraken!
 }
