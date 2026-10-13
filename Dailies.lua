@@ -1720,10 +1720,31 @@ function Dailies.ShowTabContent()
 								desc = "This quest is ready to turn in."
 								tit = "|cff00ff00" .. q.Title .. "|r" -- green is quest is ready to turn in 
 							else
-								status = "|TInterface\\AddOns\\Dailies\\Images\\selected:16|t"; 
-								desc = "You have that quest in your quest log." 
+								status = "|TInterface\\AddOns\\Dailies\\Images\\selected:16|t";
+								desc = "You have that quest in your quest log."
 							end
 						end
+
+						-- Pool quests (dungeon, heroic, fishing, cooking...): only one of the pool is offered
+						-- each day, so unless this is known to be today's one, don't present it as available.
+						if dllocal_group[kq] and not todaysDaily and not alreadyHaveIt then
+							local poolName = dllocal_group[kq].group
+							local todaysPick = nil
+							for kq2 in pairs(dllocal_group) do
+								if kq2 ~= kq and dllocal_group[kq2].group == poolName and Dailies_Data.Quests[kq2]
+										and Dailies_Data.Quests[kq2].TodayUntil and Dailies_Data.Quests[kq2].TodayUntil > time() then
+									todaysPick = kq2
+								end
+							end
+							status = "|TInterface\\AddOns\\Dailies\\Images\\nottoday:16|t"
+							tit = "|cff808080" .. q.Title .. "|r"
+							if todaysPick then
+								desc = "Part of the " .. poolName .. " pool, but not today's quest.\nToday's is |cffffd100" .. Dailies_Data.Quests[todaysPick].Title .. "|r|cffa0a0a0."
+							else
+								desc = "Part of the " .. poolName .. " pool: only one of these is offered each day.\nToday's isn't known yet, so it may or may not be this one."
+							end
+						end
+
 						if completed then status = "|TInterface\\AddOns\\Dailies\\Images\\completed:16|t"; desc = "You have completed this quest today" end 
 						if Dailies_Data.Toons[dllocal_charKey].Quests[kq].Ignored then status = "|TInterface\\AddOns\\Dailies\\Images\\ignored:16|t"; desc = "You are ignoring this quest" end 
 
